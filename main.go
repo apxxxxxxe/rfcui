@@ -5,6 +5,7 @@ import (
 	//"github.com/apxxxxxxe/rfcui/tui"
 
 	"fmt"
+	"math"
 	"math/rand"
 	"sort"
 	"strings"
@@ -31,11 +32,30 @@ type Feed struct {
 }
 
 type Article struct {
-	FeedTitle string
-	Title     string
-	PubDate   time.Time
-	Link      string
-	Color     int
+	Belong  *Feed
+	Title   string
+	PubDate time.Time
+	Link    string
+}
+
+func getFeedfromFile(filepath string) *Feed {
+	parser := gofeed.NewParser()
+
+	bytes, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		panic(err)
+	}
+
+	parsedFeed, _ := parser.ParseString(string(bytes))
+	color := rand.Intn(256)
+
+	feed := &Feed{Title: parsedFeed.Title, Color: color}
+
+	for _, item := range parsedFeed.Items {
+		feed.Items = append(feed.Items, &Article{feed, item.Title, parseTime(item.Published), item.Link})
+	}
+
+	return feed
 }
 
 func color256Sprint(num int, text string) string {
@@ -43,7 +63,7 @@ func color256Sprint(num int, text string) string {
 		setColor   = "\x1b[38;5;%dm"
 		resetColor = "\x1b[0m"
 	)
-	n := num % 256
+	n := int(math.Abs(float64(num))) % 256
 	return fmt.Sprintf(setColor+text+resetColor, n)
 }
 
@@ -140,7 +160,6 @@ func deleteAfterNow(articles []*Article) []*Article {
 func main() {
 
 	const timeFormat = "2006/01/02 15:04:05"
-	fp := gofeed.NewParser()
 
 	feedURLs := []string{
 		"https://nitter.net/NJSLYR/rss",
@@ -158,8 +177,9 @@ func main() {
 		"https://readingmonkey.blog.fc2.com/?xml",
 	}
 
-	const hasFeed = true
+	const hasFeed = false
 
+	// フィードをファイルにダウンロードする
 	feedFiles := []string{}
 	if hasFeed {
 		workDir, _ := os.Getwd()
@@ -180,32 +200,30 @@ func main() {
 		fmt.Print("\x1b[2K\r")
 	}
 
-	var feedItems []*Article
+	// ファイルからFeedクラスを作る
+	var feeds []*Feed
 	for _, path := range feedFiles {
-		bytes, err := ioutil.ReadFile(path)
-		if err != nil {
-			panic(err)
-		}
-		feed, _ := fp.ParseString(string(bytes))
-		color := rand.Intn(256)
+		feeds = append(feeds, getFeedfromFile(path))
+	}
 
-		for _, item := range feed.Items {
-			feedItems = append(feedItems, &Article{feed.Title, item.Title, parseTime(item.Published), item.Link, color})
-		}
+	// すべてのフィードから記事を集めて配列を作る
+	allFeedItems := make([]*Article, 0)
+	for _, feed := range feeds {
+		allFeedItems = append(allFeedItems, feed.Items...)
 	}
 
 	// 日付順にソート
-	sort.Slice(feedItems, func(i, j int) bool {
-		return feedItems[i].PubDate.Before(feedItems[j].PubDate)
+	sort.Slice(allFeedItems, func(i, j int) bool {
+		return allFeedItems[i].PubDate.Before(allFeedItems[j].PubDate)
 	})
 
 	// 現在時刻より未来のフィードを除外
-	feedItems = deleteAfterNow(feedItems)
+	allFeedItems = deleteAfterNow(allFeedItems)
 
 	// フィードを表示
 	bar()
-	for _, item := range feedItems {
-		fmt.Printf("%s [%s] \n%s\n\n", color256Sprint(item.Color, item.FeedTitle), item.PubDate.Format(timeFormat), item.Link)
+	for _, item := range allFeedItems {
+		fmt.Printf("%s [%s] \n%s\n\n", color256Sprint(item.Belong.Color, item.Belong.Title), item.PubDate.Format(timeFormat), item.Link)
 		fmt.Println(item.Title)
 		bar()
 	}
