@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:giga="https://gigaviewer.com">
+    <channel>
+        <title>コロコロオンライン（ぷにるはかわいいスライム）</title>
+        <pubDate>Thu, 24 Mar 2022 01:00:00 +0000</pubDate>
+        <link>https://www.corocoro.jp/episode/3269754496804969156</link>
+        <description>【毎週木曜更新・週刊コロコロオリジナル作品】コロコロ史上初、異色のラブコメまんが！！
+自分の作ったスライムが女の子に変身!?　ぷにるの自由気ままな言動に少年・コタローは振り回されっぱなし。毎日愉快なドキドキ生活だ!!</description>
+        <docs>http://blogs.law.harvard.edu/tech/rss</docs>
+        <item>
+            <title>ぷにるはかわいいスライム　第3話</title>
+            <link>https://www.corocoro.jp/episode/3269754496826498839</link>
+            <guid isPermalink="false">corocoro:episode:3269754496826498839</guid>
+            <pubDate>Thu, 24 Mar 2022 01:00:00 +0000</pubDate>                <giga:freeTermStartDate>Thu, 24 Mar 2022 01:00:00 +0000</giga:freeTermStartDate>            <description>ぷにるはかわいいスライム</description>
+            <enclosure url="https://cdn-img.www.corocoro.jp/public/episode-thumbnail/3269754496826498839-2ea81dca772aa83c74f03bcbfd92107b" length="0" type="image/jpeg" />
+            <author>まえだくん</author>
+        </item>
+        <item>
+            <title>ぷにるはかわいいスライム　第2話</title>
+            <link>https://www.corocoro.jp/episode/3269754496806285295</link>
+            <guid isPermalink="false">corocoro:episode:3269754496806285295</guid>
+            <pubDate>Thu, 17 Mar 2022 01:00:00 +0000</pubDate>                <giga:freeTermStartDate>Thu, 17 Mar 2022 01:00:00 +0000</giga:freeTermStartDate>            <description>ぷにるはかわいいスライム</description>
+            <enclosure url="https://cdn-img.www.corocoro.jp/public/episode-thumbnail/3269754496806285295-61c3269e65420b81c42da1f9165de002" length="0" type="image/jpeg" />
+            <author>まえだくん</author>
+        </item>
+        <item>
+            <title>ぷにるはかわいいスライム　第1話</title>
+            <link>https://www.corocoro.jp/episode/3269754496804969156</link>
+            <guid isPermalink="false">corocoro:episode:3269754496804969156</guid>
+            <pubDate>Mon, 14 Mar 2022 01:00:00 +0000</pubDate>                <giga:freeTermStartDate>Mon, 14 Mar 2022 01:00:00 +0000</giga:freeTermStartDate>            <description>ぷにるはかわいいスライム</description>
+            <enclosure url="https://cdn-img.www.corocoro.jp/public/episode-thumbnail/3269754496804969156-311d89707a73e01353522d83fac0aacb" length="0" type="image/jpeg" />
+            <author>まえだくん</author>
+        </item>
+    </channel>
+</rss>
