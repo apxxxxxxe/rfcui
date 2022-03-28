@@ -1,7 +1,8 @@
 package main
 
 import (
-	"github.com/apxxxxxxe/rfcui/db"
+	//"github.com/apxxxxxxe/rfcui/db"
+	//"github.com/apxxxxxxe/rfcui/tui"
 
 	"fmt"
 	"math/rand"
