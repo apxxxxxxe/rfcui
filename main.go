@@ -147,14 +147,14 @@ func downloadFeed(url string) (string, error) {
 
 func deleteAfterNow(items []*Article) []*Article {
 	now := time.Now()
-	ret := make([]*Article, 0)
+	result := make([]*Article, 0)
 
 	for _, item := range items {
 		if now.After(item.PubDate) {
-			ret = append(ret, item)
+			result = append(result, item)
 		}
 	}
-	return ret
+	return result
 }
 
 func main() {
