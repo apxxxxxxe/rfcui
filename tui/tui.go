@@ -60,18 +60,17 @@ func (t *Tui) SetArticles(items []*feed.Article) {
 func NewTui() *Tui {
 
 	mainTable := tview.NewTable()
-	mainTable.SetTitle("Feeds").SetBorder(true)
+	mainTable.SetTitle("Feeds").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	mainTable.Select(0, 0).SetFixed(1, 1).SetSelectable(true, true)
 
 	subTable := tview.NewTable()
-	subTable.SetTitle("Articles").SetBorder(true)
+	subTable.SetTitle("Articles").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	subTable.Select(0, 0).SetFixed(1, 1).SetSelectable(true, true)
 
 	infoWidget := tview.NewTextView().SetTextAlign(1)
-	infoWidget.SetTitle("Details").SetBorder(true)
+	infoWidget.SetTitle("Details").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
 	grid := tview.NewGrid()
-	grid.SetTitle("grid").SetBorder(false)
 	grid.SetSize(6, 5, 0, 0).
 		AddItem(mainTable, 0, 0, 6, 2, 0, 0, true).
 		AddItem(subTable, 0, 2, 4, 4, 0, 0, true).
