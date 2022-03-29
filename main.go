@@ -92,9 +92,6 @@ func main() {
 
 	t := tui.NewTui()
 	t.MainWidget.Feeds = feeds
-	t.SubWidget.Items = conbinedFeeds.Items
-	t.LoadCells(t.MainWidget.Table, feedURLs)
-	t.LoadCells(t.SubWidget.Table, itemNames)
 	t.Notify("vim!")
 	t.Run()
 

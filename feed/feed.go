@@ -48,6 +48,8 @@ func GetFeedfromFile(fp string) *Feed {
 		feed.Items = append(feed.Items, &Article{feed, item.Title, parseTime(item.Published), item.Link})
 	}
 
+	feed.Items = formatArticles(feed.Items)
+
 	return feed
 }
 
@@ -116,7 +118,7 @@ func formatArticles(items []*Article) []*Article {
 
 	// 日付順にソート
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].PubDate.Before(result[j].PubDate)
+		return result[i].PubDate.After(result[j].PubDate)
 	})
 
 	return result
