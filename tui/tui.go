@@ -1,139 +1,161 @@
-package main
+package tui
 
 import (
+	"fmt"
+
+	"github.com/apxxxxxxe/rfcui/feed"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-
-	"os"
-	"os/exec"
 )
 
 type Tui struct {
 	App        *tview.Application
 	Pages      *tview.Pages
-	Widgets    []*tview.Table
+	MainWidget *MainWidget
+	SubWidget  *SubWidget
+	Info       *tview.TextView
 	FocusIndex int
 }
 
-func newTui() *Tui {
-	tui := &Tui{
-		App:        tview.NewApplication(),
-		Pages:      tview.NewPages(),
-		FocusIndex: 0,
-		Widgets:    make([]*tview.Table, 0),
+func (t *Tui) Notify(text string) {
+	t.Info.SetText(text)
+}
+
+func (t *Tui) LoadCells(table *tview.Table, texts []string) {
+	table.Clear()
+	for i, text := range texts {
+		table.SetCell(i, 0, tview.NewTableCell(text))
 	}
+}
 
-	mainWidget := tview.NewTable().Select(0, 0).SetFixed(1, 1).SetSelectable(true, true)
-	mainWidget.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEscape {
-			tui.App.Stop()
-		}
-		if key == tcell.KeyEnter {
-			mainWidget.SetSelectable(true, true)
-		}
-	}).SetSelectedFunc(func(row int, column int) {
-		mainWidget.GetCell(row, column).SetTextColor(tcell.ColorRed)
-		mainWidget.SetSelectable(false, false)
-	})
+type MainWidget struct {
+	Table *tview.Table
+	Feeds []*feed.Feed
+}
 
-	mainWidget.
-		SetCellSimple(0, 0, "1").
-		SetCellSimple(1, 0, "2").
-		SetCellSimple(2, 0, "3").
-		SetCellSimple(3, 0, "4").
-		SetCellSimple(4, 0, "5").
-		SetCellSimple(5, 0, "6").
-		SetCellSimple(6, 0, "7")
-	mainWidget.SetTitle("Feeds").SetBorder(true)
+type SubWidget struct {
+	Table *tview.Table
+	Items []*feed.Article
+}
 
-	subWidget := tview.NewTable()
-	subWidget.SetTitle("Articles").
-		SetBorder(true)
+func (t *Tui) SetFeeds(feeds []*feed.Feed) {
+	t.MainWidget.Feeds = feeds
+	feedTitles := []string{}
+	for _, feed := range feeds {
+		feedTitles = append(feedTitles, feed.Title)
+	}
+	t.LoadCells(t.MainWidget.Table, feedTitles)
+}
 
-	descWidget := tview.NewBox()
-	descWidget.SetTitle("Details").
-		SetBorder(true)
+func (t *Tui) SetArticles(items []*feed.Article) {
+	t.SubWidget.Items = items
+	itemTexts := []string{}
+	for _, item := range items {
+		itemTexts = append(itemTexts, item.Title)
+	}
+	t.LoadCells(t.SubWidget.Table, itemTexts)
+}
 
-	tui.Widgets = append(tui.Widgets, mainWidget, subWidget)
+func NewTui() *Tui {
 
-	tui.App.SetFocus(tui.Widgets[0])
+	mainTable := tview.NewTable()
+	mainTable.SetTitle("Feeds").SetBorder(true)
+	mainTable.Select(0, 0).SetFixed(1, 1).SetSelectable(true, true)
 
-	mainWidget.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlF:
-			// CtrlFを押した時の処理を記述
-			return event // CtrlFをInputFieldのdefaultのキー設定へ伝える
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'a':
-				// aを押した時の処理を記述
-				return nil // aを入力してもdefaultのキー設定へ伝えない
-			case 'b':
-				// bを押した時の処理を記述
-				return nil // bを入力してもdefaultのキー設定へ伝えない
-			}
-		}
-		return event // 上記以外のキー入力をdefaultのキーアクションへ伝える
-	})
+	subTable := tview.NewTable()
+	subTable.SetTitle("Articles").SetBorder(true)
+	subTable.Select(0, 0).SetFixed(1, 1).SetSelectable(true, true)
+
+	infoWidget := tview.NewTextView().SetTextAlign(1)
+	infoWidget.SetTitle("Details").SetBorder(true)
 
 	grid := tview.NewGrid()
 	grid.SetTitle("grid").SetBorder(false)
 	grid.SetSize(6, 5, 0, 0).
-		AddItem(mainWidget, 0, 0, 6, 2, 0, 0, true).
-		AddItem(subWidget, 0, 2, 4, 4, 0, 0, true).
-		AddItem(descWidget, 4, 2, 2, 4, 0, 0, true)
+		AddItem(mainTable, 0, 0, 6, 2, 0, 0, true).
+		AddItem(subTable, 0, 2, 4, 4, 0, 0, true).
+		AddItem(infoWidget, 4, 2, 2, 4, 0, 0, true)
 
-	tui.Pages.SetTitle("page1").SetBorder(false)
-	tui.Pages.AddPage("MainPage", grid, true, true)
+	tui := &Tui{
+		App:        tview.NewApplication(),
+		Pages:      tview.NewPages().AddPage("MainPage", grid, true, true),
+		FocusIndex: 0,
+		MainWidget: &MainWidget{mainTable, []*feed.Feed{}},
+		SubWidget:  &SubWidget{subTable, []*feed.Article{}},
+		Info:       infoWidget,
+	}
 
-	tui.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	return tui
+}
+
+func (t *Tui) Run() error {
+
+	t.MainWidget.Table.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			t.MainWidget.Table.SetSelectable(true, true)
+		}
+	}).SetSelectedFunc(func(row int, column int) {
+		t.MainWidget.Table.GetCell(row, column).SetTextColor(tcell.ColorRed)
+		t.MainWidget.Table.SetSelectable(false, false)
+	})
+
+	t.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
+			case 'j':
+				row, _ := t.MainWidget.Table.GetSelection()
+				t.SetArticles(t.MainWidget.Feeds[row].Items)
+			case 'k':
+				row, _ := t.MainWidget.Table.GetSelection()
+				t.SetArticles(t.MainWidget.Feeds[row].Items)
+			}
+		}
+		return event
+	})
+
+	t.SubWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'j':
+				row, _ := t.SubWidget.Table.GetSelection()
+				item := t.SubWidget.Items[row]
+				t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.PubDate, "\n", item.Title, "\n", item.Link))
+			case 'k':
+				row, _ := t.SubWidget.Table.GetSelection()
+				item := t.SubWidget.Items[row]
+				t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.PubDate, "\n", item.Title, "\n", item.Link))
+			}
+		}
+		return event
+	})
+
+	t.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			t.App.Stop()
+			return nil
+		case tcell.KeyRune:
+			switch event.Rune() {
 			case 'h':
-				tui.App.SetFocus(tui.Widgets[0])
+				t.App.SetFocus(t.MainWidget.Table)
 				return nil
 			case 'l':
-				tui.App.SetFocus(tui.Widgets[1])
+				t.App.SetFocus(t.SubWidget.Table)
+				return nil
+			case 'q':
+				t.App.Stop()
 				return nil
 			}
 		}
 		return event
 	})
 
-	return tui
-}
-
-func execCmd(attachStd bool, cmd string, args ...string) error {
-	command := exec.Command(cmd, args...)
-
-	if attachStd {
-		command.Stdin = os.Stdin
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
+	if err := t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table).Run(); err != nil {
+		t.App.Stop()
+		return err
 	}
-	defer func() {
-		command.Stdin = nil
-		command.Stdout = nil
-		command.Stderr = nil
-	}()
-
-	return command.Run()
-}
-
-func (t Tui) loadCells(index int, texts []string) {
-	for i, text := range texts {
-		t.Widgets[index].SetCell(i, 0, tview.NewTableCell(text))
-	}
-}
-
-func main() {
-	tui := newTui()
-
-	texts := []string{"a", "b", "c"}
-	tui.loadCells(0, texts)
-
-	if err := tui.App.SetRoot(tui.Pages, true).Run(); err != nil {
-		panic(err)
-	}
+	return nil
 }
