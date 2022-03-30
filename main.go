@@ -47,7 +47,7 @@ func main() {
 		"https://readingmonkey.blog.fc2.com/?xml",
 	}
 
-	const hasFeed = false
+	const hasFeed = true
 
 	// フィードをファイルにダウンロードする
 	feedFiles := []string{}

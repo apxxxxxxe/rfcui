@@ -18,6 +18,16 @@ type Tui struct {
 	FocusIndex int
 }
 
+func (t *Tui) RefreshTui() {
+	if t.MainWidget.Table.HasFocus() {
+		t.SelectMainWidgetRow(0)
+		t.Notify("")
+	}
+	if t.SubWidget.Table.HasFocus() {
+		t.SelectSubWidgetRow(0)
+	}
+}
+
 func (t *Tui) Notify(text string) {
 	t.Info.SetText(text)
 }
@@ -65,6 +75,25 @@ func (m *MainWidget) GetFeedTitles() []string {
 		titles = append(titles, feed.Title)
 	}
 	return titles
+}
+
+func (t *Tui) SelectMainWidgetRow(count int) {
+	row, column := t.MainWidget.Table.GetSelection()
+	if (count < 0 && row+count >= 0) || (count > 0 && row+count <= t.MainWidget.Table.GetRowCount()-1) {
+		row += count
+	}
+	t.MainWidget.Table.Select(row, column)
+	t.SetArticles(t.MainWidget.Feeds[row].Items)
+}
+
+func (t *Tui) SelectSubWidgetRow(count int) {
+	row, column := t.SubWidget.Table.GetSelection()
+	if (count < 0 && row+count >= 0) || (count > 0 && row+count <= t.SubWidget.Table.GetRowCount()-1) {
+		row += count
+	}
+	t.SubWidget.Table.Select(row, column)
+	item := t.SubWidget.Items[row]
+	t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.PubDate, "\n", item.Title, "\n", item.Link))
 }
 
 func (s *SubWidget) GetArticleTitles() []string {
@@ -122,22 +151,10 @@ func (t *Tui) Run() error {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'j':
-				row, column := t.MainWidget.Table.GetSelection()
-				if row < t.MainWidget.Table.GetRowCount()-1 {
-					t.MainWidget.Table.Select(row+1, column)
-				}
-				row, _ = t.MainWidget.Table.GetSelection()
-				t.SetArticles(t.MainWidget.Feeds[row].Items)
-				t.Notify(string(row))
+				t.SelectMainWidgetRow(1)
 				return nil
 			case 'k':
-				row, column := t.MainWidget.Table.GetSelection()
-				if row > 0 {
-					t.MainWidget.Table.Select(row-1, column)
-				}
-				row, _ = t.MainWidget.Table.GetSelection()
-				t.SetArticles(t.MainWidget.Feeds[row].Items)
-				t.Notify(string(row))
+				t.SelectMainWidgetRow(-1)
 				return nil
 			}
 		}
@@ -149,22 +166,10 @@ func (t *Tui) Run() error {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'j':
-				row, column := t.SubWidget.Table.GetSelection()
-				if row < t.SubWidget.Table.GetRowCount()-1 {
-					t.SubWidget.Table.Select(row+1, column)
-				}
-				row, _ = t.SubWidget.Table.GetSelection()
-				item := t.SubWidget.Items[row]
-				t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.PubDate, "\n", item.Title, "\n", item.Link))
+				t.SelectSubWidgetRow(1)
 				return nil
 			case 'k':
-				row, column := t.SubWidget.Table.GetSelection()
-				if row > 0 {
-					t.SubWidget.Table.Select(row-1, column)
-				}
-				row, _ = t.SubWidget.Table.GetSelection()
-				item := t.SubWidget.Items[row]
-				t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.PubDate, "\n", item.Title, "\n", item.Link))
+				t.SelectSubWidgetRow(-1)
 				return nil
 			}
 		}
@@ -180,9 +185,11 @@ func (t *Tui) Run() error {
 			switch event.Rune() {
 			case 'h':
 				t.App.SetFocus(t.MainWidget.Table)
+				t.RefreshTui()
 				return nil
 			case 'l':
 				t.App.SetFocus(t.SubWidget.Table)
+				t.RefreshTui()
 				return nil
 			case 'q':
 				t.App.Stop()
@@ -196,7 +203,10 @@ func (t *Tui) Run() error {
 	t.LoadCells(t.MainWidget.Table, t.MainWidget.GetFeedTitles())
 	t.LoadCells(t.SubWidget.Table, t.SubWidget.GetArticleTitles())
 
-	if err := t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table).Run(); err != nil {
+	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
+	t.RefreshTui()
+
+	if err := t.App.Run(); err != nil {
 		t.App.Stop()
 		return err
 	}
