@@ -22,9 +22,9 @@ type Tui struct {
 
 func (t *Tui) RefreshTui() {
 	if t.MainWidget.Table.HasFocus() {
-		t.SelectMainWidgetRow(0)
+		t.SelectMainWidgetRow()
 	} else if t.SubWidget.Table.HasFocus() {
-		t.SelectSubWidgetRow(0)
+		t.SelectSubWidgetRow()
 	}
 }
 
@@ -80,23 +80,15 @@ func (t *Tui) UpdateAllFeed() {
 	t.Notify("Updated.")
 }
 
-func (t *Tui) SelectMainWidgetRow(count int) {
-	row, column := t.MainWidget.Table.GetSelection()
-	if (count < 0 && row+count >= 0) || (count > 0 && row+count <= t.MainWidget.Table.GetRowCount()-1) {
-		row += count
-	}
-	t.MainWidget.Table.Select(row, column)
+func (t *Tui) SelectMainWidgetRow() {
+	row, _ := t.MainWidget.Table.GetSelection()
 	feed := t.MainWidget.Feeds[row]
 	t.SetArticles(feed.Items)
 	t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link, "\n", feed.FeedLink))
 }
 
-func (t *Tui) SelectSubWidgetRow(count int) {
-	row, column := t.SubWidget.Table.GetSelection()
-	if (count < 0 && row+count >= 0) || (count > 0 && row+count <= t.SubWidget.Table.GetRowCount()-1) {
-		row += count
-	}
-	t.SubWidget.Table.Select(row, column)
+func (t *Tui) SelectSubWidgetRow() {
+	row, _ := t.SubWidget.Table.GetSelection()
 	item := t.SubWidget.Items[row]
 	t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
 }
@@ -199,9 +191,11 @@ func (t *Tui) Run() error {
 			switch event.Rune() {
 			case 'h':
 				t.App.SetFocus(t.MainWidget.Table)
+				t.RefreshTui()
 				return nil
 			case 'l':
 				t.App.SetFocus(t.SubWidget.Table)
+				t.RefreshTui()
 				return nil
 			case 'q':
 				t.App.Stop()
