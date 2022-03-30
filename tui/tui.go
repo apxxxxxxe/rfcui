@@ -171,24 +171,24 @@ func (t *Tui) Run() error {
 	t.SubWidget.Table.SetSelectionChangedFunc(func(row, column int) {
 		item := t.SubWidget.Items[row]
 		t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
-	})
-	t.SubWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'o':
-				row, _ := t.SubWidget.Table.GetSelection()
-				browser := os.Getenv("BROWSER")
-				if browser == "" {
-					t.Notify("$BROWSER is empty. Set it and try again.")
-				} else {
-					execCmd(true, browser, t.SubWidget.Items[row].Link)
+	}).
+		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Key() {
+			case tcell.KeyRune:
+				switch event.Rune() {
+				case 'o':
+					row, _ := t.SubWidget.Table.GetSelection()
+					browser := os.Getenv("BROWSER")
+					if browser == "" {
+						t.Notify("$BROWSER is empty. Set it and try again.")
+					} else {
+						execCmd(true, browser, t.SubWidget.Items[row].Link)
+					}
+					return nil
 				}
-				return nil
 			}
-		}
-		return event
-	})
+			return event
+		})
 
 	t.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -199,11 +199,9 @@ func (t *Tui) Run() error {
 			switch event.Rune() {
 			case 'h':
 				t.App.SetFocus(t.MainWidget.Table)
-				t.RefreshTui()
 				return nil
 			case 'l':
 				t.App.SetFocus(t.SubWidget.Table)
-				t.RefreshTui()
 				return nil
 			case 'q':
 				t.App.Stop()
