@@ -34,6 +34,11 @@ func bar() error {
 func main() {
 
 	feedURLs := []string{
+		"https://tonarinoyj.jp/rss/series/3269754496421404509",
+		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3Aapxxxxxxe",
+		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3ANaoS__",
+		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3A_nunog_",
+		"https://viewer.heros-web.com/rss/series/13933686331695925339",
 		"https://shonenjumpplus.com/rss/series/3269754496501949051",
 		"https://yuchrszk.blogspot.com/rss.xml",
 		"https://ch.nicovideo.jp/paleo/blomaga/nico/feed",
@@ -76,7 +81,7 @@ func main() {
 	var feeds []*feed.Feed
 	for i, url := range feedURLs {
 		fmt.Printf("\x1b[2Kdownloading %s (%d/%d)\r", url, i+1, len(feedURLs))
-		feeds = append(feeds, feed.GetFeedFromUrl(url))
+		feeds = append(feeds, feed.GetFeedFromUrl(url, ""))
 	}
 	fmt.Print("\x1b[2K\r")
 

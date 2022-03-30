@@ -29,13 +29,20 @@ func (a *Article) FormatTime() string {
 	return a.PubDate.Format(timeFormat)
 }
 
-func GetFeedFromUrl(url string) *Feed {
+func GetFeedFromUrl(url string, forcedTitle string) *Feed {
 	parser := gofeed.NewParser()
 
 	parsedFeed, _ := parser.ParseURL(url)
 	color := rand.Intn(256)
 
-	feed := &Feed{"", parsedFeed.Title, color, parsedFeed.Link, url, []*Article{}}
+	var title string
+	if forcedTitle != "" {
+		title = forcedTitle
+	} else {
+		title = parsedFeed.Title
+	}
+
+	feed := &Feed{"", title, color, parsedFeed.Link, url, []*Article{}}
 
 	for _, item := range parsedFeed.Items {
 		feed.Items = append(feed.Items, &Article{feed, item.Title, parseTime(item.Published), item.Link})

@@ -23,8 +23,7 @@ type Tui struct {
 func (t *Tui) RefreshTui() {
 	if t.MainWidget.Table.HasFocus() {
 		t.SelectMainWidgetRow(0)
-	}
-	if t.SubWidget.Table.HasFocus() {
+	} else if t.SubWidget.Table.HasFocus() {
 		t.SelectSubWidgetRow(0)
 	}
 }
@@ -42,16 +41,6 @@ func (t *Tui) LoadCells(table *tview.Table, texts []string) {
 	for i, text := range texts {
 		table.SetCell(i, 0, tview.NewTableCell(text))
 	}
-}
-
-type MainWidget struct {
-	Table *tview.Table
-	Feeds []*feed.Feed
-}
-
-type SubWidget struct {
-	Table *tview.Table
-	Items []*feed.Article
 }
 
 func (t *Tui) SetFeeds(feeds []*feed.Feed) {
@@ -77,17 +66,18 @@ func (t *Tui) SetArticles(items []*feed.Article) {
 func (t *Tui) UpdateSelectedFeed() {
 	row, _ := t.MainWidget.Table.GetSelection()
 	targetFeed := *t.MainWidget.Feeds[row]
-	targetFeed = *feed.GetFeedFromUrl(targetFeed.FeedLink)
+	targetFeed = *feed.GetFeedFromUrl(targetFeed.FeedLink, targetFeed.Title)
 	t.SetArticles(targetFeed.Items)
 	t.Notify("Updated.")
 }
 
-func (m *MainWidget) GetFeedTitles() []string {
-	titles := []string{}
-	for _, feed := range m.Feeds {
-		titles = append(titles, feed.Title)
+func (t *Tui) UpdateAllFeed() {
+	t.Notify("Updating...")
+	for _, f := range t.MainWidget.Feeds {
+		f = feed.GetFeedFromUrl(f.FeedLink, f.Title)
+		t.SetArticles(f.Items)
 	}
-	return titles
+	t.Notify("Updated.")
 }
 
 func (t *Tui) SelectMainWidgetRow(count int) {
@@ -109,14 +99,6 @@ func (t *Tui) SelectSubWidgetRow(count int) {
 	t.SubWidget.Table.Select(row, column)
 	item := t.SubWidget.Items[row]
 	t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
-}
-
-func (s *SubWidget) GetArticleTitles() []string {
-	titles := []string{}
-	for _, item := range s.Items {
-		titles = append(titles, item.Title)
-	}
-	return titles
 }
 
 func NewTui() *Tui {
@@ -165,26 +147,31 @@ func (t *Tui) Run() error {
 	}).SetSelectedFunc(func(row int, column int) {
 		t.MainWidget.Table.GetCell(row, column).SetTextColor(tcell.ColorRed)
 		t.MainWidget.Table.SetSelectable(false, false)
+	}).SetSelectionChangedFunc(func(row, column int) {
+		feed := t.MainWidget.Feeds[row]
+		t.SetArticles(feed.Items)
+		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link, "\n", feed.FeedLink))
 	})
 
 	t.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
+			case 'R':
+				t.UpdateAllFeed()
+				return nil
 			case 'r':
 				t.UpdateSelectedFeed()
-				return nil
-			case 'j':
-				t.SelectMainWidgetRow(1)
-				return nil
-			case 'k':
-				t.SelectMainWidgetRow(-1)
 				return nil
 			}
 		}
 		return event
 	})
 
+	t.SubWidget.Table.SetSelectionChangedFunc(func(row, column int) {
+		item := t.SubWidget.Items[row]
+		t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+	})
 	t.SubWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
@@ -197,12 +184,6 @@ func (t *Tui) Run() error {
 				} else {
 					execCmd(true, browser, t.SubWidget.Items[row].Link)
 				}
-				return nil
-			case 'j':
-				t.SelectSubWidgetRow(1)
-				return nil
-			case 'k':
-				t.SelectSubWidgetRow(-1)
 				return nil
 			}
 		}
@@ -218,7 +199,7 @@ func (t *Tui) Run() error {
 			switch event.Rune() {
 			case 'h':
 				t.App.SetFocus(t.MainWidget.Table)
-				t.Notify("")
+				t.RefreshTui()
 				return nil
 			case 'l':
 				t.App.SetFocus(t.SubWidget.Table)
