@@ -35,7 +35,6 @@ func bar() error {
 
 func main() {
 
-
 	feedURLs := []string{
 		"https://shonenjumpplus.com/rss/series/3269754496501949051",
 		"https://yuchrszk.blogspot.com/rss.xml",
@@ -86,6 +85,7 @@ func main() {
 	t := tui.NewTui()
 	t.MainWidget.Feeds = feeds
 	t.Notify("vim!")
+	t.UpdateHelp("q: exit rfcui")
 	t.Run()
 
 	// フィードを表示

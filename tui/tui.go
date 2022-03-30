@@ -15,6 +15,7 @@ type Tui struct {
 	MainWidget *MainWidget
 	SubWidget  *SubWidget
 	Info       *tview.TextView
+	Help       *tview.TextView
 	FocusIndex int
 }
 
@@ -30,6 +31,10 @@ func (t *Tui) RefreshTui() {
 
 func (t *Tui) Notify(text string) {
 	t.Info.SetText(text)
+}
+
+func (t *Tui) UpdateHelp(text string) {
+	t.Help.SetText(text)
 }
 
 func (t *Tui) LoadCells(table *tview.Table, texts []string) {
@@ -117,19 +122,25 @@ func NewTui() *Tui {
 	infoWidget := tview.NewTextView()
 	infoWidget.SetTitle("Details").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
-	grid := tview.NewGrid()
-	grid.SetSize(6, 5, 0, 0).
-		AddItem(mainTable, 0, 0, 6, 2, 0, 0, true).
-		AddItem(subTable, 0, 2, 4, 4, 0, 0, true).
-		AddItem(infoWidget, 4, 2, 2, 4, 0, 0, true)
+	helpWidget := tview.NewTextView().SetTextAlign(2)
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(mainTable, 0, 1, false).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(subTable, 0, 3, false).
+				AddItem(infoWidget, 0, 1, false),
+				0, 2, false),
+			0, 1, false).AddItem(helpWidget, 1, 0, false)
 
 	tui := &Tui{
 		App:        tview.NewApplication(),
-		Pages:      tview.NewPages().AddPage("MainPage", grid, true, true),
+		Pages:      tview.NewPages().AddPage("MainPage", flex, true, true),
 		FocusIndex: 0,
 		MainWidget: &MainWidget{mainTable, []*feed.Feed{}},
 		SubWidget:  &SubWidget{subTable, []*feed.Article{}},
 		Info:       infoWidget,
+		Help:       helpWidget,
 	}
 
 	return tui
