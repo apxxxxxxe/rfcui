@@ -1,27 +1,20 @@
 package feed
 
 import (
-	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
-	"io"
-	"io/ioutil"
-	"net/http"
-
-	// フィード取得&フォーマット
 	"github.com/mmcdole/gofeed"
 )
 
 type Feed struct {
-	Group string
-	Title string
-	Color int
-	Items []*Article
+	Group    string
+	Title    string
+	Color    int
+	Link     string
+	FeedLink string
+	Items    []*Article
 }
 
 type Article struct {
@@ -36,18 +29,13 @@ func (a *Article) FormatTime() string {
 	return a.PubDate.Format(timeFormat)
 }
 
-func GetFeedfromFile(fp string) *Feed {
+func GetFeedFromUrl(url string) *Feed {
 	parser := gofeed.NewParser()
 
-	bytes, err := ioutil.ReadFile(fp)
-	if err != nil {
-		panic(err)
-	}
-
-	parsedFeed, _ := parser.ParseString(string(bytes))
+	parsedFeed, _ := parser.ParseURL(url)
 	color := rand.Intn(256)
 
-	feed := &Feed{"", parsedFeed.Title, color, []*Article{}}
+	feed := &Feed{"", parsedFeed.Title, color, parsedFeed.Link, url, []*Article{}}
 
 	for _, item := range parsedFeed.Items {
 		feed.Items = append(feed.Items, &Article{feed, item.Title, parseTime(item.Published), item.Link})
@@ -56,58 +44,6 @@ func GetFeedfromFile(fp string) *Feed {
 	feed.Items = formatArticles(feed.Items)
 
 	return feed
-}
-
-func downloadFile(fp string, url string) error {
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if err := os.MkdirAll(filepath.Dir(fp), 0777); err != nil {
-		return err
-	}
-
-	out, err := os.Create(fp)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	return err
-}
-
-func DownloadFeed(url string) (string, error) {
-	workDir, _ := os.Getwd()
-	basedir := workDir + "/feedcache"
-	tmpfile := basedir + "/" + fmt.Sprint(time.Now().UnixNano())
-	fp := gofeed.NewParser()
-
-	if err := downloadFile(tmpfile, url); err != nil {
-		return "", err
-	}
-
-	data, err := ioutil.ReadFile(tmpfile)
-	if err != nil {
-		return "", err
-	}
-
-	feed, err := fp.ParseString(string(data))
-	if err != nil {
-		return "", err
-	}
-
-	filename := strings.ReplaceAll(feed.Title, " ", "")
-	filename = strings.ReplaceAll(filename, "/", "／")
-	filename = basedir + "/" + filename
-
-	if err = os.Rename(tmpfile, filename); err != nil {
-		return "", err
-	}
-	return filename, nil
 }
 
 func formatArticles(items []*Article) []*Article {
@@ -138,10 +74,12 @@ func CombineFeeds(feeds []*Feed, group string) *Feed {
 	combinedItems = formatArticles(combinedItems)
 
 	return &Feed{
-		Group: group,
-		Title: "",
-		Color: 0,
-		Items: combinedItems,
+		Group:    group,
+		Title:    "",
+		Color:    0,
+		Link:     "",
+		FeedLink: "",
+		Items:    combinedItems,
 	}
 }
 

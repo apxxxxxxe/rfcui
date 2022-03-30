@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/apxxxxxxe/rfcui/feed"
 
@@ -22,7 +23,6 @@ type Tui struct {
 func (t *Tui) RefreshTui() {
 	if t.MainWidget.Table.HasFocus() {
 		t.SelectMainWidgetRow(0)
-		t.Notify("")
 	}
 	if t.SubWidget.Table.HasFocus() {
 		t.SelectSubWidgetRow(0)
@@ -74,6 +74,14 @@ func (t *Tui) SetArticles(items []*feed.Article) {
 	t.SubWidget.Table.Select(0, 0).ScrollToBeginning()
 }
 
+func (t *Tui) UpdateSelectedFeed() {
+	row, _ := t.MainWidget.Table.GetSelection()
+	targetFeed := *t.MainWidget.Feeds[row]
+	targetFeed = *feed.GetFeedFromUrl(targetFeed.FeedLink)
+	t.SetArticles(targetFeed.Items)
+	t.Notify("Updated.")
+}
+
 func (m *MainWidget) GetFeedTitles() []string {
 	titles := []string{}
 	for _, feed := range m.Feeds {
@@ -88,7 +96,9 @@ func (t *Tui) SelectMainWidgetRow(count int) {
 		row += count
 	}
 	t.MainWidget.Table.Select(row, column)
-	t.SetArticles(t.MainWidget.Feeds[row].Items)
+	feed := t.MainWidget.Feeds[row]
+	t.SetArticles(feed.Items)
+	t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link, "\n", feed.FeedLink))
 }
 
 func (t *Tui) SelectSubWidgetRow(count int) {
@@ -120,7 +130,7 @@ func NewTui() *Tui {
 	subTable.Select(0, 0).SetSelectable(true, true)
 
 	infoWidget := tview.NewTextView()
-	infoWidget.SetTitle("Details").SetBorder(true).SetTitleAlign(tview.AlignLeft)
+	infoWidget.SetTitle("Info").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
 	helpWidget := tview.NewTextView().SetTextAlign(2)
 
@@ -161,6 +171,9 @@ func (t *Tui) Run() error {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
+			case 'r':
+				t.UpdateSelectedFeed()
+				return nil
 			case 'j':
 				t.SelectMainWidgetRow(1)
 				return nil
@@ -176,6 +189,15 @@ func (t *Tui) Run() error {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
+			case 'o':
+				row, _ := t.SubWidget.Table.GetSelection()
+				browser := os.Getenv("BROWSER")
+				if browser == "" {
+					t.Notify("$BROWSER is empty. Set it and try again.")
+				} else {
+					execCmd(true, browser, t.SubWidget.Items[row].Link)
+				}
+				return nil
 			case 'j':
 				t.SelectSubWidgetRow(1)
 				return nil

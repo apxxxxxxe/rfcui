@@ -6,9 +6,7 @@ import (
 	"github.com/apxxxxxxe/rfcui/tui"
 
 	"fmt"
-	"io/ioutil"
 	"math"
-	"os"
 	"strings"
 
 	// terminalのwidth,height取得用
@@ -47,44 +45,43 @@ func main() {
 
 	const hasFeed = true
 
-	// フィードをファイルにダウンロードする
-	feedFiles := []string{}
-	if hasFeed {
-		workDir, _ := os.Getwd()
-		basedir := workDir + "/feedcache"
-		files, _ := ioutil.ReadDir(basedir + "/")
-		for _, file := range files {
-			feedFiles = append(feedFiles, basedir+"/"+file.Name())
-		}
-	} else {
-		for i, feedURL := range feedURLs {
-			fmt.Printf("\x1b[2Kdownloading %s (%d/%d)\r", feedURL, i+1, len(feedURLs))
-			filename, err := feed.DownloadFeed(feedURL)
-			if err != nil {
-				panic(err)
-			}
-			feedFiles = append(feedFiles, filename)
-		}
-		fmt.Print("\x1b[2K\r")
-	}
+	//// フィードをファイルにダウンロードする
+	//feedFiles := []string{}
+	//if hasFeed {
+	//	workDir, _ := os.Getwd()
+	//	basedir := workDir + "/feedcache"
+	//	files, _ := ioutil.ReadDir(basedir + "/")
+	//	for _, file := range files {
+	//		feedFiles = append(feedFiles, basedir+"/"+file.Name())
+	//	}
+	//} else {
+	//	for i, feedURL := range feedURLs {
+	//		fmt.Printf("\x1b[2Kdownloading %s (%d/%d)\r", feedURL, i+1, len(feedURLs))
+	//		filename, err := feed.DownloadFeed(feedURL)
+	//		if err != nil {
+	//			panic(err)
+	//		}
+	//		feedFiles = append(feedFiles, filename)
+	//	}
+	//	fmt.Print("\x1b[2K\r")
+	//}
 
-	// ファイルからFeedクラスを作る
+	//// ファイルからFeedクラスを作る
+	//var feeds []*feed.Feed
+	//for _, path := range feedFiles {
+	//	feeds = append(feeds, feed.GetFeedfromFile(path))
+	//}
+
+	// urlからFeedクラスを作る
 	var feeds []*feed.Feed
-	for _, path := range feedFiles {
-		feeds = append(feeds, feed.GetFeedfromFile(path))
+	for i, url := range feedURLs {
+		fmt.Printf("\x1b[2Kdownloading %s (%d/%d)\r", url, i+1, len(feedURLs))
+		feeds = append(feeds, feed.GetFeedFromUrl(url))
 	}
-
-	// すべてのフィードから記事を集めて配列を作る
-	conbinedFeeds := feed.CombineFeeds(feeds, "AllArticles")
-
-	itemNames := []string{}
-	for _, item := range conbinedFeeds.Items {
-		itemNames = append(itemNames, item.Title)
-	}
+	fmt.Print("\x1b[2K\r")
 
 	t := tui.NewTui()
 	t.MainWidget.Feeds = feeds
-	t.Notify("vim!")
 	t.UpdateHelp("q: exit rfcui")
 	t.Run()
 
