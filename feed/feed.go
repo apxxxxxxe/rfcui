@@ -31,6 +31,11 @@ type Article struct {
 	Link    string
 }
 
+func (a *Article) FormatTime() string {
+	const timeFormat = "2006/01/02 15:04:05"
+	return a.PubDate.Format(timeFormat)
+}
+
 func GetFeedfromFile(fp string) *Feed {
 	parser := gofeed.NewParser()
 

@@ -93,7 +93,7 @@ func (t *Tui) SelectSubWidgetRow(count int) {
 	}
 	t.SubWidget.Table.Select(row, column)
 	item := t.SubWidget.Items[row]
-	t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.PubDate, "\n", item.Title, "\n", item.Link))
+	t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
 }
 
 func (s *SubWidget) GetArticleTitles() []string {
@@ -114,7 +114,7 @@ func NewTui() *Tui {
 	subTable.SetTitle("Articles").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	subTable.Select(0, 0).SetSelectable(true, true)
 
-	infoWidget := tview.NewTextView().SetTextAlign(1)
+	infoWidget := tview.NewTextView()
 	infoWidget.SetTitle("Details").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
 	grid := tview.NewGrid()
@@ -185,7 +185,7 @@ func (t *Tui) Run() error {
 			switch event.Rune() {
 			case 'h':
 				t.App.SetFocus(t.MainWidget.Table)
-				t.RefreshTui()
+				t.Notify("")
 				return nil
 			case 'l':
 				t.App.SetFocus(t.SubWidget.Table)

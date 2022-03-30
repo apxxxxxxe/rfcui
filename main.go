@@ -35,7 +35,6 @@ func bar() error {
 
 func main() {
 
-	const timeFormat = "2006/01/02 15:04:05"
 
 	feedURLs := []string{
 		"https://shonenjumpplus.com/rss/series/3269754496501949051",
