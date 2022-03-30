@@ -38,12 +38,6 @@ func main() {
 	const timeFormat = "2006/01/02 15:04:05"
 
 	feedURLs := []string{
-		"https://nitter.net/NJSLYR/rss",
-		"https://nitter.net/NaoS__/rss",
-		"https://nitter.net/apxxxxxxe/rss",
-		"https://nitter.net/tyatya_1026/rss",
-		"https://nitter.net/_nunog_/rss",
-		"https://www.corocoro.jp/rss/series/3269754496804959379",
 		"https://shonenjumpplus.com/rss/series/3269754496501949051",
 		"https://yuchrszk.blogspot.com/rss.xml",
 		"https://ch.nicovideo.jp/paleo/blomaga/nico/feed",
@@ -53,7 +47,7 @@ func main() {
 		"https://readingmonkey.blog.fc2.com/?xml",
 	}
 
-	const hasFeed = true
+	const hasFeed = false
 
 	// フィードをファイルにダウンロードする
 	feedFiles := []string{}

@@ -46,6 +46,7 @@ func (t *Tui) SetFeeds(feeds []*feed.Feed) {
 		feedTitles = append(feedTitles, feed.Title)
 	}
 	t.LoadCells(t.MainWidget.Table, feedTitles)
+	t.MainWidget.Table.Select(0, 0).ScrollToBeginning()
 }
 
 func (t *Tui) SetArticles(items []*feed.Article) {
@@ -55,6 +56,7 @@ func (t *Tui) SetArticles(items []*feed.Article) {
 		itemTexts = append(itemTexts, item.Title)
 	}
 	t.LoadCells(t.SubWidget.Table, itemTexts)
+	t.SubWidget.Table.Select(0, 0).ScrollToBeginning()
 }
 
 func (m *MainWidget) GetFeedTitles() []string {
@@ -121,7 +123,7 @@ func (t *Tui) Run() error {
 			switch event.Rune() {
 			case 'j':
 				row, column := t.MainWidget.Table.GetSelection()
-				if row < t.MainWidget.Table.GetRowCount() {
+				if row < t.MainWidget.Table.GetRowCount()-1 {
 					t.MainWidget.Table.Select(row+1, column)
 				}
 				row, _ = t.MainWidget.Table.GetSelection()
@@ -148,7 +150,7 @@ func (t *Tui) Run() error {
 			switch event.Rune() {
 			case 'j':
 				row, column := t.SubWidget.Table.GetSelection()
-				if row < t.SubWidget.Table.GetRowCount() {
+				if row < t.SubWidget.Table.GetRowCount()-1 {
 					t.SubWidget.Table.Select(row+1, column)
 				}
 				row, _ = t.SubWidget.Table.GetSelection()
