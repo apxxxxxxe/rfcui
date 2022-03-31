@@ -208,6 +208,15 @@ func (t *Tui) Run() error {
 	}).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
+			case tcell.KeyEnter:
+				row, _ := t.SubWidget.Table.GetSelection()
+				browser := os.Getenv("BROWSER")
+				if browser == "" {
+					t.Notify("$BROWSER is empty. Set it and try again.")
+				} else {
+					execCmd(true, browser, t.SubWidget.Items[row].Link)
+				}
+				return nil
 			case tcell.KeyRune:
 				switch event.Rune() {
 				case 'o':
