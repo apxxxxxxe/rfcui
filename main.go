@@ -6,6 +6,8 @@ import (
 
 	//"github.com/apxxxxxxe/rfcui/db"
 	//"github.com/apxxxxxxe/rfcui/feed"
+	"log"
+
 	"github.com/apxxxxxxe/rfcui/tui"
 
 	"fmt"
@@ -50,7 +52,9 @@ func main() {
 		wg.Add(1)
 		go func(u string) {
 			defer wg.Done()
-			t.AddFeedFromURL(u)
+			if err := t.AddFeedFromURL(u); err != nil {
+				log.Fatal(err)
+			}
 		}(url)
 	}
 
