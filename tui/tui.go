@@ -32,11 +32,11 @@ func (t *Tui) SaveFeeds() error {
 }
 
 func (t *Tui) AddFeedFromURL(url string) error {
-	f := feed.GetFeedFromUrl(url, "")
-	t.setFeeds(append(t.MainWidget.Feeds, f))
-	if err := db.SaveInterface(f, url); err != nil {
-		return err
+	f, err := db.LoadInterface(url)
+	if err != nil {
+		f = feed.GetFeedFromUrl(url, "")
 	}
+	t.setFeeds(append(t.MainWidget.Feeds, f))
 	return nil
 }
 

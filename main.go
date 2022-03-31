@@ -25,6 +25,11 @@ func color256Sprint(num int, text string) string {
 	return fmt.Sprintf(setColor+text+resetColor, n)
 }
 
+type Person struct {
+	Name string
+	Age  int
+}
+
 func main() {
 
 	feedURLs := []string{

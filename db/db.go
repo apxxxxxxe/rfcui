@@ -1,6 +1,8 @@
 package db
 
 import (
+  "github.com/apxxxxxxe/rfcui/feed"
+
 	"encoding/gob"
 	"os"
 	"path/filepath"
@@ -9,19 +11,29 @@ import (
 	"errors"
 )
 
-func SaveInterface(t interface{}, filename string) error {
+func SaveInterface(t *feed.Feed, filename string) error {
 	pwd, _ := os.Getwd()
+	fp := filepath.Join(pwd, "save")
 
-	if err := os.Mkdir(filepath.Join(pwd, "save"), 0777); err != nil {
-		return err
+	if !isDir(fp) {
+		if err := os.Mkdir(fp, 0777); err != nil {
+			return err
+		}
 	}
 
-	f, err := os.Create(filepath.Join(pwd, "save", formatFilename(filename)))
+	file := filepath.Join(pwd, "save", formatFilename(filename))
+	var f *os.File
+	var err error
+	if isFile(file) {
+		f, err = os.Open(file)
+	} else {
+		f, err = os.Create(file)
+	}
 	if err != nil {
 		return err
 	}
-
 	defer f.Close()
+
 	enc := gob.NewEncoder(f)
 
 	if err := enc.Encode(t); err != nil {
@@ -30,21 +42,21 @@ func SaveInterface(t interface{}, filename string) error {
 	return nil
 }
 
-func LoadInterface(filename string) (interface{}, error) {
+func LoadInterface(filename string) (*feed.Feed, error) {
 	pwd, _ := os.Getwd()
 
-	p := filepath.Join(pwd, "save", formatFilename(filename))
-	if !fileExists(p) {
-		return nil, errors.New("file is not exist: " + p)
+	fp := filepath.Join(pwd, "save", formatFilename(filename))
+	if !isFile(fp) {
+		return nil, errors.New("file is not exist: " + fp)
 	}
 
-	f, err := os.Open(filepath.Join(p))
+	f, err := os.Open(filepath.Join(fp))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	var t interface{}
+	var t *feed.Feed
 	dec := gob.NewDecoder(f)
 	if err := dec.Decode(&t); err != nil {
 		return nil, err
@@ -72,7 +84,16 @@ func formatFilename(name string) string {
 	return result
 }
 
-func fileExists(filename string) bool {
+func isFile(filename string) bool {
 	_, err := os.Stat(formatFilename(filename))
 	return err == nil
+}
+
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	os.IsNotExist(err)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	return true
 }
