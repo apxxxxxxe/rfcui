@@ -2,17 +2,16 @@ package main
 
 import (
 	//"github.com/apxxxxxxe/rfcui/db"
-	"sort"
+	//"log"
 
-	"github.com/apxxxxxxe/rfcui/feed"
+	//"github.com/apxxxxxxe/rfcui/db"
+	//"github.com/apxxxxxxe/rfcui/feed"
 	"github.com/apxxxxxxe/rfcui/tui"
 
 	"fmt"
 	"math"
-	"strings"
 
-	// terminalのwidth,height取得用
-	"golang.org/x/term"
+	"sync"
 )
 
 func color256Sprint(num int, text string) string {
@@ -24,18 +23,10 @@ func color256Sprint(num int, text string) string {
 	return fmt.Sprintf(setColor+text+resetColor, n)
 }
 
-func bar() error {
-	width, _, err := term.GetSize(0)
-	if err != nil {
-		return err
-	}
-	println(strings.Repeat("─", width))
-	return nil
-}
-
 func main() {
 
 	feedURLs := []string{
+		"https://www.corocoro.jp/rss/series/3269754496804959379",
 		"https://nazology.net/feed",
 		"https://tonarinoyj.jp/rss/series/3269754496421404509",
 		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3Aapxxxxxxe",
@@ -51,28 +42,26 @@ func main() {
 		"https://readingmonkey.blog.fc2.com/?xml",
 	}
 
-	const hasFeed = true
-
-	// urlからFeedクラスを作る
-	var feeds []*feed.Feed
-	for i, url := range feedURLs {
-		fmt.Printf("\x1b[2Kdownloading %s (%d/%d)\r", url, i+1, len(feedURLs))
-		feeds = append(feeds, feed.GetFeedFromUrl(url, ""))
-	}
-	fmt.Print("\x1b[2K\r")
+	var wg sync.WaitGroup
 
 	t := tui.NewTui()
-	t.MainWidget.Feeds = feeds
-	t.MainWidget.Feeds = append([]*feed.Feed{feed.MergeFeeds(feeds, "AllArticles")}, t.MainWidget.Feeds...)
-	sort.Slice(t.MainWidget.Feeds, func(i, j int) bool {
-		return bool(strings.Compare(t.MainWidget.Feeds[i].Title, t.MainWidget.Feeds[j].Title) == -1)
-	})
-	sort.Slice(t.MainWidget.Feeds, func(i, j int) bool {
-		// Prioritize merged feeds
-		return t.MainWidget.Feeds[i].Merged && !t.MainWidget.Feeds[j].Merged
-	})
+
+	for _, url := range feedURLs {
+		wg.Add(1)
+		go func(u string) {
+			defer wg.Done()
+			t.AddFeedFromURL(u)
+		}(url)
+	}
+
 	t.UpdateHelp("q: exit rfcui")
-	t.Run()
+	if err := t.Run(); err != nil {
+		panic(err)
+	}
+
+	wg.Wait()
+
+	//t.MainWidget.Feeds = append([]*feed.Feed{feed.MergeFeeds(t.MainWidget.Feeds, "◆AllArticles")}, t.MainWidget.Feeds...)
 
 	return
 

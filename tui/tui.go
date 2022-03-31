@@ -3,7 +3,10 @@ package tui
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
+	"github.com/apxxxxxxe/rfcui/db"
 	"github.com/apxxxxxxe/rfcui/feed"
 
 	"github.com/gdamore/tcell/v2"
@@ -17,6 +20,25 @@ type Tui struct {
 	SubWidget  *SubWidget
 	Info       *tview.TextView
 	Help       *tview.TextView
+}
+
+func (t *Tui) SaveFeeds() error {
+	for _, feed := range t.MainWidget.Feeds {
+		if err := db.SaveInterface(feed, feed.Title); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *Tui) SortFeeds() {
+	sort.Slice(t.MainWidget.Feeds, func(i, j int) bool {
+		return strings.Compare(t.MainWidget.Feeds[i].Title, t.MainWidget.Feeds[j].Title) == -1
+	})
+	sort.Slice(t.MainWidget.Feeds, func(i, j int) bool {
+		// Prioritize merged feeds
+		return t.MainWidget.Feeds[i].Merged && !t.MainWidget.Feeds[j].Merged
+	})
 }
 
 func (t *Tui) RefreshTui() {
@@ -42,14 +64,24 @@ func (t *Tui) LoadCells(table *tview.Table, texts []string) {
 	}
 }
 
+func (t *Tui) AddFeedFromURL(url string) *feed.Feed {
+	f := feed.GetFeedFromUrl(url, "")
+	t.SetFeeds(append(t.MainWidget.Feeds, f))
+	return f
+}
+
 func (t *Tui) SetFeeds(feeds []*feed.Feed) {
 	t.MainWidget.Feeds = feeds
+	t.SortFeeds()
 	feedTitles := []string{}
-	for _, feed := range feeds {
+	for _, feed := range t.MainWidget.Feeds {
 		feedTitles = append(feedTitles, feed.Title)
 	}
 	t.LoadCells(t.MainWidget.Table, feedTitles)
-	t.MainWidget.Table.Select(0, 0).ScrollToBeginning()
+	if t.MainWidget.Table.GetRowCount() != 0 {
+		t.MainWidget.Table.Select(0, 0).ScrollToBeginning()
+	}
+	t.App.ForceDraw()
 }
 
 func (t *Tui) SetArticles(items []*feed.Article) {
@@ -59,10 +91,14 @@ func (t *Tui) SetArticles(items []*feed.Article) {
 		itemTexts = append(itemTexts, item.Title)
 	}
 	t.LoadCells(t.SubWidget.Table, itemTexts)
-	t.SubWidget.Table.Select(0, 0).ScrollToBeginning()
+	if t.SubWidget.Table.GetRowCount() != 0 {
+		t.SubWidget.Table.Select(0, 0).ScrollToBeginning()
+	}
 }
 
 func (t *Tui) UpdateSelectedFeed() {
+	t.Notify("Updating...")
+	t.App.ForceDraw()
 	row, _ := t.MainWidget.Table.GetSelection()
 	targetFeed := *t.MainWidget.Feeds[row]
 	targetFeed = *feed.GetFeedFromUrl(targetFeed.FeedLink, targetFeed.Title)
@@ -72,6 +108,7 @@ func (t *Tui) UpdateSelectedFeed() {
 
 func (t *Tui) UpdateAllFeed() {
 	t.Notify("Updating...")
+	t.App.ForceDraw()
 	for _, f := range t.MainWidget.Feeds {
 		f = feed.GetFeedFromUrl(f.FeedLink, f.Title)
 		t.SetArticles(f.Items)
@@ -81,15 +118,19 @@ func (t *Tui) UpdateAllFeed() {
 
 func (t *Tui) SelectMainWidgetRow() {
 	row, _ := t.MainWidget.Table.GetSelection()
-	feed := t.MainWidget.Feeds[row]
-	t.SetArticles(feed.Items)
-	t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link, "\n", feed.FeedLink))
+	if len(t.MainWidget.Feeds) != 0 {
+		feed := t.MainWidget.Feeds[row]
+		t.SetArticles(feed.Items)
+		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link))
+	}
 }
 
 func (t *Tui) SelectSubWidgetRow() {
 	row, _ := t.SubWidget.Table.GetSelection()
-	item := t.SubWidget.Items[row]
-	t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+	if len(t.SubWidget.Items) != 0 {
+		item := t.SubWidget.Items[row]
+		t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+	}
 }
 
 func NewTui() *Tui {
@@ -140,7 +181,7 @@ func (t *Tui) Run() error {
 	}).SetSelectionChangedFunc(func(row, column int) {
 		feed := t.MainWidget.Feeds[row]
 		t.SetArticles(feed.Items)
-		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link, "\n", feed.FeedLink))
+		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link, "\n", feed.Merged))
 	})
 
 	t.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -203,7 +244,9 @@ func (t *Tui) Run() error {
 		return event
 	})
 
-	t.SubWidget.Items = t.MainWidget.Feeds[0].Items
+	if len(t.MainWidget.Feeds) > 0 {
+		t.SubWidget.Items = t.MainWidget.Feeds[0].Items
+	}
 	t.LoadCells(t.MainWidget.Table, t.MainWidget.GetFeedTitles())
 	t.LoadCells(t.SubWidget.Table, t.SubWidget.GetArticleTitles())
 

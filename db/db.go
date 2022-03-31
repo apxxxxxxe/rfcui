@@ -1,58 +1,78 @@
 package db
 
 import (
-	"database/sql"
-	"path"
+	"encoding/gob"
+	"os"
+	"path/filepath"
+	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
+	"errors"
 )
 
-type TDB struct {
-	*sql.DB
-}
+func SaveInterface(t interface{}, filename string) error {
+	pwd, _ := os.Getwd()
 
-func InitDB(appDir string) (*TDB, error) {
-
-	dbpath := path.Join(appDir, "terminews.db")
-	db, err := sql.Open("sqlite3", dbpath)
-	if err != nil || db == nil {
-		return nil, err
+	if err := os.Mkdir(filepath.Join(pwd, "save"), 0777); err != nil {
+		return err
 	}
 
-	tdb := &TDB{db}
-	if err = tdb.CreateTables(); err != nil {
-		return nil, err
+	f, err := os.Create(filepath.Join(pwd, "save", formatFilename(filename)))
+	if err != nil {
+		return err
 	}
 
-	return tdb, nil
-}
+	defer f.Close()
+	enc := gob.NewEncoder(f)
 
-func (tdb *TDB) CreateTables() error {
-	ssql := []string{
-		//GetSiteSql(),
-		//GetEventSql(),
+	if err := enc.Encode(t); err != nil {
+		return err
 	}
-	for _, s := range ssql {
-		_, err := tdb.Exec(s)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (tdb *TDB) DropTables() error {
-	ssql := []string{
-		"DROP TABLE site;",
-		"DROP TABLE event;",
-	}
-	for _, s := range ssql {
-		_, err := tdb.Exec(s)
-		if err != nil {
-			return err
-		}
+func LoadInterface(filename string) (interface{}, error) {
+	pwd, _ := os.Getwd()
+
+	p := filepath.Join(pwd, "save", formatFilename(filename))
+	if !fileExists(p) {
+		return nil, errors.New("file is not exist: " + p)
 	}
 
-	return nil
+	f, err := os.Open(filepath.Join(p))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var t interface{}
+	dec := gob.NewDecoder(f)
+	if err := dec.Decode(&t); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func formatFilename(name string) string {
+	characters := [][]string{
+		{"\\", "￥"},
+		{":", "："},
+		{"*", "＊"},
+		{"?", "？"},
+		{"<", "＜"},
+		{">", "＞"},
+		{"|", "｜"},
+		{"/", "／"},
+		{" ", ""},
+	}
+
+	result := name
+	for _, c := range characters {
+		result = strings.ReplaceAll(result, c[0], c[1])
+	}
+	return result
+}
+
+func fileExists(filename string) bool {
+	_, err := os.Stat(formatFilename(filename))
+	return err == nil
 }
