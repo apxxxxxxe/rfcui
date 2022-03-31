@@ -17,7 +17,6 @@ type Tui struct {
 	SubWidget  *SubWidget
 	Info       *tview.TextView
 	Help       *tview.TextView
-	FocusIndex int
 }
 
 func (t *Tui) RefreshTui() {
@@ -120,7 +119,6 @@ func NewTui() *Tui {
 	tui := &Tui{
 		App:        tview.NewApplication(),
 		Pages:      tview.NewPages().AddPage("MainPage", flex, true, true),
-		FocusIndex: 0,
 		MainWidget: &MainWidget{mainTable, []*feed.Feed{}},
 		SubWidget:  &SubWidget{subTable, []*feed.Article{}},
 		Info:       infoWidget,

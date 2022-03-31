@@ -15,6 +15,7 @@ type Feed struct {
 	Link     string
 	FeedLink string
 	Items    []*Article
+	Merged bool
 }
 
 type Article struct {
@@ -42,7 +43,7 @@ func GetFeedFromUrl(url string, forcedTitle string) *Feed {
 		title = parsedFeed.Title
 	}
 
-	feed := &Feed{"", title, color, parsedFeed.Link, url, []*Article{}}
+	feed := &Feed{"", title, color, parsedFeed.Link, url, []*Article{}, false}
 
 	for _, item := range parsedFeed.Items {
 		feed.Items = append(feed.Items, &Article{feed, item.Title, parseTime(item.Published), item.Link})
@@ -72,21 +73,22 @@ func formatArticles(items []*Article) []*Article {
 	return result
 }
 
-func CombineFeeds(feeds []*Feed, group string) *Feed {
-	combinedItems := []*Article{}
+func MergeFeeds(feeds []*Feed, group string) *Feed {
+	mergedItems := []*Article{}
 
 	for _, feed := range feeds {
-		combinedItems = append(combinedItems, feed.Items...)
+		mergedItems = append(mergedItems, feed.Items...)
 	}
-	combinedItems = formatArticles(combinedItems)
+	mergedItems = formatArticles(mergedItems)
 
 	return &Feed{
 		Group:    group,
-		Title:    "",
+		Title:    group,
 		Color:    0,
 		Link:     "",
 		FeedLink: "",
-		Items:    combinedItems,
+		Items:    mergedItems,
+		Merged: true,
 	}
 }
 

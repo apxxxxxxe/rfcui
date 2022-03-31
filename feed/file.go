@@ -26,7 +26,7 @@ func GetFeedfromFile(fp string) *Feed {
 	parsedFeed, _ := parser.ParseString(string(bytes))
 	color := rand.Intn(256)
 
-	feed := &Feed{"", parsedFeed.Title, color, parsedFeed.Link, "", []*Article{}}
+	feed := &Feed{"", parsedFeed.Title, color, parsedFeed.Link, "", []*Article{}, false}
 
 	for _, item := range parsedFeed.Items {
 		feed.Items = append(feed.Items, &Article{feed, item.Title, parseTime(item.Published), item.Link})

@@ -2,6 +2,8 @@ package main
 
 import (
 	//"github.com/apxxxxxxe/rfcui/db"
+	"sort"
+
 	"github.com/apxxxxxxe/rfcui/feed"
 	"github.com/apxxxxxxe/rfcui/tui"
 
@@ -34,6 +36,7 @@ func bar() error {
 func main() {
 
 	feedURLs := []string{
+		"https://nazology.net/feed",
 		"https://tonarinoyj.jp/rss/series/3269754496421404509",
 		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3Aapxxxxxxe",
 		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3ANaoS__",
@@ -50,33 +53,6 @@ func main() {
 
 	const hasFeed = true
 
-	//// フィードをファイルにダウンロードする
-	//feedFiles := []string{}
-	//if hasFeed {
-	//	workDir, _ := os.Getwd()
-	//	basedir := workDir + "/feedcache"
-	//	files, _ := ioutil.ReadDir(basedir + "/")
-	//	for _, file := range files {
-	//		feedFiles = append(feedFiles, basedir+"/"+file.Name())
-	//	}
-	//} else {
-	//	for i, feedURL := range feedURLs {
-	//		fmt.Printf("\x1b[2Kdownloading %s (%d/%d)\r", feedURL, i+1, len(feedURLs))
-	//		filename, err := feed.DownloadFeed(feedURL)
-	//		if err != nil {
-	//			panic(err)
-	//		}
-	//		feedFiles = append(feedFiles, filename)
-	//	}
-	//	fmt.Print("\x1b[2K\r")
-	//}
-
-	//// ファイルからFeedクラスを作る
-	//var feeds []*feed.Feed
-	//for _, path := range feedFiles {
-	//	feeds = append(feeds, feed.GetFeedfromFile(path))
-	//}
-
 	// urlからFeedクラスを作る
 	var feeds []*feed.Feed
 	for i, url := range feedURLs {
@@ -87,16 +63,17 @@ func main() {
 
 	t := tui.NewTui()
 	t.MainWidget.Feeds = feeds
+	t.MainWidget.Feeds = append([]*feed.Feed{feed.MergeFeeds(feeds, "AllArticles")}, t.MainWidget.Feeds...)
+	sort.Slice(t.MainWidget.Feeds, func(i, j int) bool {
+		return bool(strings.Compare(t.MainWidget.Feeds[i].Title, t.MainWidget.Feeds[j].Title) == -1)
+	})
+	sort.Slice(t.MainWidget.Feeds, func(i, j int) bool {
+		// Prioritize merged feeds
+		return t.MainWidget.Feeds[i].Merged && !t.MainWidget.Feeds[j].Merged
+	})
 	t.UpdateHelp("q: exit rfcui")
 	t.Run()
 
-	// フィードを表示
-	//bar()
-	//for _, item := range conbinedFeeds.Items {
-	//	fmt.Printf("%s [%s] \n%s\n\n", color256Sprint(item.Belong.Color, item.Belong.Title), item.PubDate.Format(timeFormat), item.Link)
-	//	fmt.Println(item.Title)
-	//	bar()
-	//}
 	return
 
 }
