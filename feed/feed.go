@@ -15,7 +15,7 @@ type Feed struct {
 	Link     string
 	FeedLink string
 	Items    []*Article
-	Merged bool
+	Merged   bool
 }
 
 type Article struct {
@@ -77,7 +77,9 @@ func MergeFeeds(feeds []*Feed, group string) *Feed {
 	mergedItems := []*Article{}
 
 	for _, feed := range feeds {
-		mergedItems = append(mergedItems, feed.Items...)
+		if !feed.Merged {
+			mergedItems = append(mergedItems, feed.Items...)
+		}
 	}
 	mergedItems = formatArticles(mergedItems)
 
@@ -88,7 +90,7 @@ func MergeFeeds(feeds []*Feed, group string) *Feed {
 		Link:     "",
 		FeedLink: "",
 		Items:    mergedItems,
-		Merged: true,
+		Merged:   true,
 	}
 }
 

@@ -1,8 +1,6 @@
 package db
 
 import (
-  "github.com/apxxxxxxe/rfcui/feed"
-
 	"encoding/gob"
 	"os"
 	"path/filepath"
@@ -11,7 +9,7 @@ import (
 	"errors"
 )
 
-func SaveInterface(t *feed.Feed, filename string) error {
+func SaveInterfaces(t interface{}) error {
 	pwd, _ := os.Getwd()
 	fp := filepath.Join(pwd, "save")
 
@@ -21,7 +19,7 @@ func SaveInterface(t *feed.Feed, filename string) error {
 		}
 	}
 
-	file := filepath.Join(pwd, "save", formatFilename(filename))
+	file := filepath.Join(pwd, "save", "Interfaces")
 	var f *os.File
 	var err error
 	if isFile(file) {
@@ -42,21 +40,21 @@ func SaveInterface(t *feed.Feed, filename string) error {
 	return nil
 }
 
-func LoadInterface(filename string) (*feed.Feed, error) {
+func LoadInterfaces() (interface{}, error) {
 	pwd, _ := os.Getwd()
 
-	fp := filepath.Join(pwd, "save", formatFilename(filename))
+	fp := filepath.Join(pwd, "save", "Interfaces")
 	if !isFile(fp) {
 		return nil, errors.New("file is not exist: " + fp)
 	}
 
-	f, err := os.Open(filepath.Join(fp))
+	f, err := os.Open(fp)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	var t *feed.Feed
+	var t interface{}
 	dec := gob.NewDecoder(f)
 	if err := dec.Decode(&t); err != nil {
 		return nil, err

@@ -1,12 +1,13 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
+	"time"
 
-	"github.com/apxxxxxxe/rfcui/db"
 	"github.com/apxxxxxxe/rfcui/feed"
 
 	"github.com/gdamore/tcell/v2"
@@ -22,20 +23,13 @@ type Tui struct {
 	Help       *tview.TextView
 }
 
-func (t *Tui) SaveFeeds() error {
+func (t *Tui) AddFeedFromURL(url string) error {
 	for _, feed := range t.MainWidget.Feeds {
-		if err := db.SaveInterface(feed, feed.Title); err != nil {
-			return err
+		if feed.FeedLink == url {
+			return errors.New("Feed already exist.")
 		}
 	}
-	return nil
-}
-
-func (t *Tui) AddFeedFromURL(url string) error {
-	f, err := db.LoadInterface(url)
-	if err != nil {
-		f = feed.GetFeedFromUrl(url, "")
-	}
+	f := feed.GetFeedFromUrl(url, "")
 	t.setFeeds(append(t.MainWidget.Feeds, f))
 	return nil
 }
@@ -73,6 +67,35 @@ func (t *Tui) setArticles(items []*feed.Article) {
 	if t.SubWidget.Table.GetRowCount() != 0 {
 		t.SubWidget.Table.Select(0, 0).ScrollToBeginning()
 	}
+}
+
+func (t *Tui) deleteFeed(i int) {
+	a := t.MainWidget.Feeds
+	a = append(a[:i], a[i+1:]...)
+}
+
+func (t *Tui) GetTodaysFeeds() {
+	const feedname = "Today's Articles"
+	for i, f := range t.MainWidget.Feeds {
+		if f.Title == feedname {
+			t.deleteFeed(i)
+			break
+		}
+	}
+	targetfeed := feed.MergeFeeds(t.MainWidget.Feeds, feedname)
+	t.MainWidget.Feeds = append(t.MainWidget.Feeds, targetfeed)
+
+	// 現在時刻より未来のフィードを除外
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	result := make([]*feed.Article, 0)
+	for _, item := range targetfeed.Items {
+		if today.Before(item.PubDate) {
+			result = append(result, item)
+		}
+	}
+	targetfeed.Items = result
+	t.setFeeds(t.MainWidget.Feeds)
 }
 
 func (t *Tui) sortFeeds() {
@@ -130,8 +153,10 @@ func (t *Tui) setFeeds(feeds []*feed.Feed) {
 		feedTitles = append(feedTitles, feed.Title)
 	}
 	t.LoadCells(t.MainWidget.Table, feedTitles)
-	if t.MainWidget.Table.GetRowCount() != 0 {
-		t.MainWidget.Table.Select(0, 0).ScrollToBeginning()
+	row, _ := t.MainWidget.Table.GetSelection()
+	max := t.MainWidget.Table.GetRowCount() - 1
+	if max < row {
+		t.MainWidget.Table.Select(max, 0).ScrollToBeginning()
 	}
 	t.App.ForceDraw()
 }
@@ -184,13 +209,17 @@ func (t *Tui) Run() error {
 	}).SetSelectionChangedFunc(func(row, column int) {
 		feed := t.MainWidget.Feeds[row]
 		t.setArticles(feed.Items)
-		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link, "\n", feed.Merged))
+		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link))
 	})
 
 	t.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
+			case 't':
+				t.GetTodaysFeeds()
+				t.UpdateHelp("gettting Today's Feed...")
+				return nil
 			case 'R':
 				t.updateAllFeed()
 				return nil

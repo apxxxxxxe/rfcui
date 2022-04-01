@@ -1,14 +1,14 @@
 package main
 
 import (
-	//"github.com/apxxxxxxe/rfcui/db"
-	//"log"
 
 	//"github.com/apxxxxxxe/rfcui/db"
+	"github.com/apxxxxxxe/rfcui/io"
 	//"github.com/apxxxxxxe/rfcui/feed"
-	"log"
 
 	"github.com/apxxxxxxe/rfcui/tui"
+
+	"log"
 
 	"fmt"
 	"math"
@@ -32,26 +32,13 @@ type Person struct {
 
 func main() {
 
-	feedURLs := []string{
-		"https://www.corocoro.jp/rss/series/3269754496804959379",
-		"https://nazology.net/feed",
-		"https://tonarinoyj.jp/rss/series/3269754496421404509",
-		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3Aapxxxxxxe",
-		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3ANaoS__",
-		"https://nitter.domain.glass/search/rss?f=tweets&q=from%3A_nunog_",
-		"https://viewer.heros-web.com/rss/series/13933686331695925339",
-		"https://shonenjumpplus.com/rss/series/3269754496501949051",
-		"https://yuchrszk.blogspot.com/rss.xml",
-		"https://ch.nicovideo.jp/paleo/blomaga/nico/feed",
-		"https://tonarinoyj.jp/rss/series/13932016480028984490",
-		"https://shonenjumpplus.com/rss/series/10833519556325021827",
-		"https://tonarinoyj.jp/rss/series/3269754496306260262",
-		"https://readingmonkey.blog.fc2.com/?xml",
-	}
+	feedURLs := io.GetLines("list.txt")
 
 	var wg sync.WaitGroup
 
 	t := tui.NewTui()
+
+	//t.LoadFeeds()
 
 	for _, url := range feedURLs {
 		wg.Add(1)
@@ -63,7 +50,6 @@ func main() {
 		}(url)
 	}
 
-	t.UpdateHelp("q: exit rfcui")
 	if err := t.Run(); err != nil {
 		panic(err)
 	}
