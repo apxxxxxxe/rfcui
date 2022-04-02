@@ -28,13 +28,13 @@ func GetLines(path string) ([]string, error) {
 }
 
 func WriteLine(path string, line string) {
-	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
+	defer file.Close()
 
-	fmt.Fprintln(f, line)
+	fmt.Fprintln(file, line)
 }
 
 func DeleteLine(path string, line string) error {
@@ -45,8 +45,7 @@ func DeleteLine(path string, line string) error {
 
 	os.Remove(path)
 
-	result := lines
-	for i, l := range lines {
+	for _, l := range lines {
 		if l != line {
 			WriteLine(path, l)
 		}

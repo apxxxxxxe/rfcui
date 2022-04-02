@@ -3,12 +3,15 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/apxxxxxxe/rfcui/feed"
+	"github.com/apxxxxxxe/rfcui/io"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -134,6 +137,7 @@ func (t *Tui) selectMainRow() {
 		feed := t.MainWidget.Feeds[row]
 		t.setArticles(feed.Items)
 		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link))
+		t.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
 }
 
@@ -174,7 +178,7 @@ func NewTui() *Tui {
 	infoWidget := tview.NewTextView()
 	infoWidget.SetTitle("Info").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
-	helpWidget := tview.NewTextView().SetTextAlign(2)
+	helpWidget := tview.NewTextView().SetTextAlign(1)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -294,9 +298,29 @@ func (t *Tui) Run() error {
 	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
 	t.RefreshTui()
 
+	feedURLs, err := io.GetLines("list.txt")
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+
+	for _, url := range feedURLs {
+		wg.Add(1)
+		go func(u string) {
+			defer wg.Done()
+			if err := t.AddFeedFromURL(u); err != nil {
+				log.Fatal(err)
+			}
+		}(url)
+	}
+
 	if err := t.App.Run(); err != nil {
 		t.App.Stop()
 		return err
 	}
+
+	wg.Wait()
+
 	return nil
 }
