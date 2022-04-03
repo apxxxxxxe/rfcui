@@ -289,15 +289,6 @@ func (t *Tui) Run() error {
 		return event
 	})
 
-	if len(t.MainWidget.Feeds) > 0 {
-		t.SubWidget.Items = t.MainWidget.Feeds[0].Items
-	}
-	t.LoadCells(t.MainWidget.Table, t.MainWidget.GetFeedTitles())
-	t.LoadCells(t.SubWidget.Table, t.SubWidget.GetArticleTitles())
-
-	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
-	t.RefreshTui()
-
 	feedURLs, err := io.GetLines("list.txt")
 	if err != nil {
 		return err
@@ -314,6 +305,15 @@ func (t *Tui) Run() error {
 			}
 		}(url)
 	}
+
+	if len(t.MainWidget.Feeds) > 0 {
+		t.SubWidget.Items = t.MainWidget.Feeds[0].Items
+	}
+	t.LoadCells(t.MainWidget.Table, t.MainWidget.GetFeedTitles())
+	t.LoadCells(t.SubWidget.Table, t.SubWidget.GetArticleTitles())
+
+	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
+	t.RefreshTui()
 
 	if err := t.App.Run(); err != nil {
 		t.App.Stop()
