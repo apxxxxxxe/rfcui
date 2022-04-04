@@ -60,7 +60,7 @@ func (t *Tui) RefreshTui() {
 	}
 }
 
-func (t *Tui) setArticles(items []*feed.Article) {
+func (t *Tui) setItems(items []*feed.Item) {
 	t.SubWidget.Items = items
 	itemTexts := []string{}
 	for _, item := range items {
@@ -78,7 +78,7 @@ func (t *Tui) deleteFeed(i int) {
 }
 
 func (t *Tui) GetTodaysFeeds() {
-	const feedname = "Today's Articles"
+	const feedname = "Today's Items"
 	for i, f := range t.MainWidget.Feeds {
 		if f.Title == feedname {
 			t.deleteFeed(i)
@@ -91,7 +91,7 @@ func (t *Tui) GetTodaysFeeds() {
 	// 現在時刻より未来のフィードを除外
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	result := make([]*feed.Article, 0)
+	result := make([]*feed.Item, 0)
 	for _, item := range targetfeed.Items {
 		if today.Before(item.PubDate) {
 			result = append(result, item)
@@ -117,7 +117,7 @@ func (t *Tui) updateSelectedFeed() {
 	row, _ := t.MainWidget.Table.GetSelection()
 	targetFeed := *t.MainWidget.Feeds[row]
 	targetFeed = *feed.GetFeedFromUrl(targetFeed.FeedLink, targetFeed.Title)
-	t.setArticles(targetFeed.Items)
+	t.setItems(targetFeed.Items)
 	t.Notify("Updated.")
 }
 
@@ -126,7 +126,7 @@ func (t *Tui) updateAllFeed() {
 	t.App.ForceDraw()
 	for _, f := range t.MainWidget.Feeds {
 		f = feed.GetFeedFromUrl(f.FeedLink, f.Title)
-		t.setArticles(f.Items)
+		t.setItems(f.Items)
 	}
 	t.Notify("Updated.")
 }
@@ -135,7 +135,7 @@ func (t *Tui) selectMainRow() {
 	row, _ := t.MainWidget.Table.GetSelection()
 	if len(t.MainWidget.Feeds) != 0 {
 		feed := t.MainWidget.Feeds[row]
-		t.setArticles(feed.Items)
+		t.setItems(feed.Items)
 		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link))
 		t.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
@@ -165,6 +165,32 @@ func (t *Tui) setFeeds(feeds []*feed.Feed) {
 	t.App.ForceDraw()
 }
 
+type MainWidget struct {
+  Table *tview.Table
+  Feeds []*feed.Feed
+}
+
+func (m *MainWidget) GetFeedTitles() []string {
+  titles := []string{}
+  for _, feed := range m.Feeds {
+    titles = append(titles, feed.Title)
+  }
+  return titles
+}
+
+type SubWidget struct {
+  Table *tview.Table
+  Items []*feed.Item
+}
+
+func (s *SubWidget) GetItemTitles() []string {
+  titles := []string{}
+  for _, item := range s.Items {
+    titles = append(titles, item.Title)
+  }
+  return titles
+}
+
 func NewTui() *Tui {
 
 	mainTable := tview.NewTable()
@@ -172,7 +198,7 @@ func NewTui() *Tui {
 	mainTable.Select(0, 0).SetSelectable(true, true)
 
 	subTable := tview.NewTable()
-	subTable.SetTitle("Articles").SetBorder(true).SetTitleAlign(tview.AlignLeft)
+	subTable.SetTitle("Items").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	subTable.Select(0, 0).SetSelectable(true, true)
 
 	infoWidget := tview.NewTextView()
@@ -193,7 +219,7 @@ func NewTui() *Tui {
 		App:        tview.NewApplication(),
 		Pages:      tview.NewPages().AddPage("MainPage", flex, true, true),
 		MainWidget: &MainWidget{mainTable, []*feed.Feed{}},
-		SubWidget:  &SubWidget{subTable, []*feed.Article{}},
+		SubWidget:  &SubWidget{subTable, []*feed.Item{}},
 		Info:       infoWidget,
 		Help:       helpWidget,
 	}
@@ -212,7 +238,7 @@ func (t *Tui) Run() error {
 		t.MainWidget.Table.SetSelectable(false, false)
 	}).SetSelectionChangedFunc(func(row, column int) {
 		feed := t.MainWidget.Feeds[row]
-		t.setArticles(feed.Items)
+		t.setItems(feed.Items)
 		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link))
 	})
 
@@ -310,7 +336,7 @@ func (t *Tui) Run() error {
 		t.SubWidget.Items = t.MainWidget.Feeds[0].Items
 	}
 	t.LoadCells(t.MainWidget.Table, t.MainWidget.GetFeedTitles())
-	t.LoadCells(t.SubWidget.Table, t.SubWidget.GetArticleTitles())
+	t.LoadCells(t.SubWidget.Table, t.SubWidget.GetItemTitles())
 
 	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
 	t.RefreshTui()
@@ -324,3 +350,5 @@ func (t *Tui) Run() error {
 
 	return nil
 }
+
+
