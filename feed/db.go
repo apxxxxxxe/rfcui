@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+  "io/ioutil"
 
 	"bytes"
 )
@@ -43,7 +44,7 @@ func IsDir(path string) bool {
 	return true
 }
 
-func Encode(feeds []*Feed) ([]byte, error) {
+func Encode(feeds *Feed) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(feeds)
@@ -53,11 +54,11 @@ func Encode(feeds []*Feed) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func Decode(data []byte) []Feed {
-	var feeds []Feed
+func Decode(data []byte) *Feed {
+	var feeds Feed
 	buf := bytes.NewBuffer(data)
 	_ = gob.NewDecoder(buf).Decode(&feeds)
-	return feeds
+	return &feeds
 }
 
 func SaveBytes(data []byte, path string) error {
@@ -72,4 +73,22 @@ func SaveBytes(data []byte, path string) error {
 		panic(err)
 	}
 	return nil
+}
+
+func DirWalk(dir string) []string {
+    files, err := ioutil.ReadDir(dir)
+    if err != nil {
+        panic(err)
+    }
+
+    var paths []string
+    for _, file := range files {
+        if file.IsDir() {
+            paths = append(paths, DirWalk(filepath.Join(dir, file.Name()))...)
+            continue
+        }
+        paths = append(paths, filepath.Join(dir, file.Name()))
+    }
+
+    return paths
 }

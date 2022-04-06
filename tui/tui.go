@@ -1,10 +1,12 @@
 package tui
 
 import (
+	"crypto/md5"
 	"errors"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -16,6 +18,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
+
+const datapath = "feedcache"
 
 type Tui struct {
 	App        *tview.Application
@@ -315,6 +319,19 @@ func (t *Tui) Run() error {
 		return event
 	})
 
+	if !feed.IsDir(datapath) {
+		os.MkdirAll(datapath, 0755)
+	}
+
+	for _, file := range feed.DirWalk(datapath) {
+		b, err := ioutil.ReadFile(file)
+		if err != nil {
+			panic(err)
+		}
+
+		t.MainWidget.Feeds = append(t.MainWidget.Feeds, feed.Decode(b))
+	}
+
 	feedURLs, err := io.GetLines("list.txt")
 	if err != nil {
 		return err
@@ -326,9 +343,7 @@ func (t *Tui) Run() error {
 		wg.Add(1)
 		go func(u string) {
 			defer wg.Done()
-			if err := t.AddFeedFromURL(u); err != nil {
-				log.Fatal(err)
-			}
+			_ = t.AddFeedFromURL(u)
 		}(url)
 	}
 
@@ -341,12 +356,21 @@ func (t *Tui) Run() error {
 	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
 	t.RefreshTui()
 
+	wg.Wait()
+
+	for _, f := range t.MainWidget.Feeds {
+		b, err := feed.Encode(f)
+		if err != nil {
+			panic(err)
+		}
+		hash := fmt.Sprintf("%x", md5.Sum([]byte(f.FeedLink)))
+		feed.SaveBytes(b, filepath.Join(datapath, hash))
+	}
+
 	if err := t.App.Run(); err != nil {
 		t.App.Stop()
 		return err
 	}
-
-	wg.Wait()
 
 	return nil
 }
