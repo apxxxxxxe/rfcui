@@ -1,4 +1,4 @@
-package db
+package feed
 
 import (
 	"encoding/gob"
@@ -6,61 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"bytes"
+
 	"errors"
 )
-
-func SaveInterfaces(t interface{}) error {
-	pwd, _ := os.Getwd()
-	fp := filepath.Join(pwd, "save")
-
-	if !IsDir(fp) {
-		if err := os.Mkdir(fp, 0777); err != nil {
-			return err
-		}
-	}
-
-	file := filepath.Join(pwd, "save", "Interfaces")
-	var f *os.File
-	var err error
-	if IsFile(file) {
-		f, err = os.Open(file)
-	} else {
-		f, err = os.Create(file)
-	}
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	enc := gob.NewEncoder(f)
-
-	if err := enc.Encode(t); err != nil {
-		return err
-	}
-	return nil
-}
-
-func LoadInterfaces() (interface{}, error) {
-	pwd, _ := os.Getwd()
-
-	fp := filepath.Join(pwd, "save", "Interfaces")
-	if !IsFile(fp) {
-		return nil, errors.New("file is not exist: " + fp)
-	}
-
-	f, err := os.Open(fp)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var t interface{}
-	dec := gob.NewDecoder(f)
-	if err := dec.Decode(&t); err != nil {
-		return nil, err
-	}
-	return t, nil
-}
 
 func formatFilename(name string) string {
 	characters := [][]string{
@@ -96,34 +45,95 @@ func IsDir(path string) bool {
 	return true
 }
 
-func serializeGob(feeds []*feed.Feed) ([]byte, error) {
-  buf := bytes.NewBuffer(nil)
-  enc := gob.NewEncoder(buf)
-  err := enc.Encode(feeds)
-  if err != nil {
-    return nil, err
-  }
-  return buf.Bytes(), nil
+func SaveInterfaces(t []*interface{}) error {
+	pwd, _ := os.Getwd()
+	fp := filepath.Join(pwd, "save")
+
+	if !IsDir(fp) {
+		if err := os.Mkdir(fp, 0777); err != nil {
+			return err
+		}
+	}
+
+	file := filepath.Join(pwd, "save", "Interfaces")
+	var (
+		f   *os.File
+		err error
+	)
+
+	if IsFile(file) {
+		f, err = os.Open(file)
+	} else {
+		f, err = os.Create(file)
+	}
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := gob.NewEncoder(f).Encode(&t); err != nil {
+		return err
+	}
+	return nil
+}
+
+func LoadInterfaces() ([]*interface{}, error) {
+	pwd, _ := os.Getwd()
+
+	fp := filepath.Join(pwd, "save", "Interfaces")
+	if !IsFile(fp) {
+		return nil, errors.New("file is not exist: " + fp)
+	}
+
+	f, err := os.Open(fp)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var t []interface{}
+	dec := gob.NewDecoder(f)
+	if err := dec.Decode(&t); err != nil {
+		return nil, err
+	}
+	var result []*interface{}
+	for _, a := range t {
+		result = append(result, &a)
+	}
+	return result, nil
+}
+
+func encode(feeds []*Feed) ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	enc := gob.NewEncoder(buf)
+	err := enc.Encode(feeds)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func decode(data []byte) []*Feed {
+	var feeds []Feed
+	buf := bytes.NewBuffer(data)
+	_ = gob.NewDecoder(buf).Decode(&feeds)
+	var result []*Feed
+	for _, f := range feeds {
+		result = append(result, &f)
+	}
+	return result
 }
 
 func saveBytes(data []byte, path string) error {
-  // ファイルを書き込み用にオープン (mode=0666)
-  file, err := os.Create(filepath.Join(".", path))
-  if err != nil {
-    panic(err)
-  }
-  defer file.Close()
+	file, err := os.Create(filepath.Join(".", path))
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
 
-  _, err = file.Write(data)
-  if err != nil {
-    panic(err)
-  }
-  return nil
-}
-
-func decode(data []byte) []feed.Feed {
-  var feeds []feed.Feed
-  buf := bytes.NewBuffer(data)
-  _ = gob.NewDecoder(buf).Decode(&feeds)
-  return feeds
+	_, err = file.Write(data)
+	if err != nil {
+		panic(err)
+	}
+	return nil
 }
