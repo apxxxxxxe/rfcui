@@ -9,21 +9,21 @@ import (
 )
 
 type Feed struct {
-	Title       string
-	Color       int
-	Description string
-	Link        string
-	FeedLink    string
-	Items       []*Item
-	Merged      bool
+	Title       string  `json:"FeedTitle"`
+	Color       int     `json:"FeedColor"`
+	Description string  `json:"FeedDescription"`
+	Link        string  `json:"FeedLink"`
+	FeedLink    string  `json:"FeedFeedLink"`
+	Items       []*Item `json:"FeedItems"`
+	Merged      bool    `json:"FeedMerged"`
 }
 
 type Item struct {
-	Belong      *Feed
-	Title       string
-	Description string
-	PubDate     time.Time
-	Link        string
+	Belong      string    `json:"ItemBelong"`
+	Title       string    `json:"ItemTitle"`
+	Description string    `json:"ItemDescription"`
+	PubDate     time.Time `json:"ItemPubDate"`
+	Link        string    `json:"ItemLink"`
 }
 
 func (a *Item) FormatTime() string {
@@ -31,7 +31,7 @@ func (a *Item) FormatTime() string {
 	return a.PubDate.Format(timeFormat)
 }
 
-func GetFeedFromUrl(url string, forcedTitle string) *Feed {
+func GetFeedFromURL(url string, forcedTitle string) *Feed {
 	parser := gofeed.NewParser()
 
 	parsedFeed, _ := parser.ParseURL(url)
@@ -47,7 +47,7 @@ func GetFeedFromUrl(url string, forcedTitle string) *Feed {
 	feed := &Feed{title, color, parsedFeed.Description, parsedFeed.Link, url, []*Item{}, false}
 
 	for _, item := range parsedFeed.Items {
-		feed.Items = append(feed.Items, &Item{feed, item.Title, item.Description, parseTime(item.Published), item.Link})
+		feed.Items = append(feed.Items, &Item{feed.Title, item.Title, item.Description, parseTime(item.Published), item.Link})
 	}
 
 	feed.Items = formatItems(feed.Items)

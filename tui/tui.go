@@ -32,7 +32,7 @@ func (t *Tui) AddFeedFromURL(url string) error {
 			return errors.New("Feed already exist.")
 		}
 	}
-	f := feed.GetFeedFromUrl(url, "")
+	f := feed.GetFeedFromURL(url, "")
 	t.setFeeds(append(t.MainWidget.Feeds, f))
 	return nil
 }
@@ -116,7 +116,7 @@ func (t *Tui) updateSelectedFeed() {
 	t.App.ForceDraw()
 	row, _ := t.MainWidget.Table.GetSelection()
 	targetFeed := *t.MainWidget.Feeds[row]
-	targetFeed = *feed.GetFeedFromUrl(targetFeed.FeedLink, targetFeed.Title)
+	targetFeed = *feed.GetFeedFromURL(targetFeed.FeedLink, targetFeed.Title)
 	t.setItems(targetFeed.Items)
 	t.Notify("Updated.")
 }
@@ -125,7 +125,7 @@ func (t *Tui) updateAllFeed() {
 	t.Notify("Updating...")
 	t.App.ForceDraw()
 	for _, f := range t.MainWidget.Feeds {
-		f = feed.GetFeedFromUrl(f.FeedLink, f.Title)
+		f = feed.GetFeedFromURL(f.FeedLink, f.Title)
 		t.setItems(f.Items)
 	}
 	t.Notify("Updated.")
@@ -145,7 +145,7 @@ func (t *Tui) selectSubRow() {
 	row, _ := t.SubWidget.Table.GetSelection()
 	if len(t.SubWidget.Items) != 0 {
 		item := t.SubWidget.Items[row]
-		t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		t.Notify(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
 	}
 }
 
@@ -166,29 +166,29 @@ func (t *Tui) setFeeds(feeds []*feed.Feed) {
 }
 
 type MainWidget struct {
-  Table *tview.Table
-  Feeds []*feed.Feed
+	Table *tview.Table `json:"Table"`
+	Feeds []*feed.Feed `json:"Feeds"`
 }
 
 func (m *MainWidget) GetFeedTitles() []string {
-  titles := []string{}
-  for _, feed := range m.Feeds {
-    titles = append(titles, feed.Title)
-  }
-  return titles
+	titles := []string{}
+	for _, feed := range m.Feeds {
+		titles = append(titles, feed.Title)
+	}
+	return titles
 }
 
 type SubWidget struct {
-  Table *tview.Table
-  Items []*feed.Item
+	Table *tview.Table `json:"SubTable"`
+	Items []*feed.Item `json:"Items"`
 }
 
 func (s *SubWidget) GetItemTitles() []string {
-  titles := []string{}
-  for _, item := range s.Items {
-    titles = append(titles, item.Title)
-  }
-  return titles
+	titles := []string{}
+	for _, item := range s.Items {
+		titles = append(titles, item.Title)
+	}
+	return titles
 }
 
 func NewTui() *Tui {
@@ -263,7 +263,7 @@ func (t *Tui) Run() error {
 
 	t.SubWidget.Table.SetSelectionChangedFunc(func(row, column int) {
 		item := t.SubWidget.Items[row]
-		t.Notify(fmt.Sprint(item.Belong.Title, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		t.Notify(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
 	}).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
@@ -350,5 +350,3 @@ func (t *Tui) Run() error {
 
 	return nil
 }
-
-
