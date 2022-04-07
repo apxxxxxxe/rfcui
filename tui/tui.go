@@ -182,6 +182,29 @@ func (m *MainWidget) GetFeedTitles() []string {
 	return titles
 }
 
+func (m *MainWidget) SaveFeeds() error {
+	for _, f := range m.Feeds {
+		b, err := feed.Encode(f)
+		if err != nil {
+			return err
+		}
+		hash := fmt.Sprintf("%x", md5.Sum([]byte(f.FeedLink)))
+		feed.SaveBytes(b, filepath.Join(datapath, hash))
+	}
+	return nil
+}
+
+func (m *MainWidget) LoadFeeds(path string) error {
+	for _, file := range feed.DirWalk(path) {
+		b, err := ioutil.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		m.Feeds = append(m.Feeds, feed.Decode(b))
+	}
+	return nil
+}
+
 type SubWidget struct {
 	Table *tview.Table `json:"SubTable"`
 	Items []*feed.Item `json:"Items"`
@@ -323,13 +346,9 @@ func (t *Tui) Run() error {
 		os.MkdirAll(datapath, 0755)
 	}
 
-	for _, file := range feed.DirWalk(datapath) {
-		b, err := ioutil.ReadFile(file)
-		if err != nil {
-			panic(err)
-		}
-
-		t.MainWidget.Feeds = append(t.MainWidget.Feeds, feed.Decode(b))
+	err := t.MainWidget.LoadFeeds(datapath)
+	if err != nil {
+		return err
 	}
 
 	feedURLs, err := io.GetLines("list.txt")
@@ -358,13 +377,9 @@ func (t *Tui) Run() error {
 
 	wg.Wait()
 
-	for _, f := range t.MainWidget.Feeds {
-		b, err := feed.Encode(f)
-		if err != nil {
-			panic(err)
-		}
-		hash := fmt.Sprintf("%x", md5.Sum([]byte(f.FeedLink)))
-		feed.SaveBytes(b, filepath.Join(datapath, hash))
+	err = t.MainWidget.SaveFeeds()
+	if err != nil {
+		return err
 	}
 
 	if err := t.App.Run(); err != nil {
