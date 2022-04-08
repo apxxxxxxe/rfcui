@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -252,6 +253,23 @@ func NewTui() *Tui {
 	}
 
 	return tui
+}
+
+func execCmd(attachStd bool, cmd string, args ...string) error {
+	command := exec.Command(cmd, args...)
+
+	if attachStd {
+		command.Stdin = os.Stdin
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+	}
+	defer func() {
+		command.Stdin = nil
+		command.Stdout = nil
+		command.Stderr = nil
+	}()
+
+	return command.Run()
 }
 
 func (t *Tui) Run() error {
