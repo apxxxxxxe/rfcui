@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/apxxxxxxe/rfcui/feed"
-	"github.com/apxxxxxxe/rfcui/io"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -369,7 +368,7 @@ func (t *Tui) Run() error {
 		return err
 	}
 
-	feedURLs, err := io.GetLines("list.txt")
+	feedURLs, err := getLines("list.txt")
 	if err != nil {
 		return err
 	}

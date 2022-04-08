@@ -1,4 +1,4 @@
-package io
+package tui
 
 import (
 	"bufio"
@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func GetLines(path string) ([]string, error) {
+func getLines(path string) ([]string, error) {
 	pwd, _ := os.Getwd()
 	fp, err := os.Open(filepath.Join(pwd, path))
 	if err != nil {
@@ -27,7 +27,7 @@ func GetLines(path string) ([]string, error) {
 	return lines, nil
 }
 
-func WriteLine(path string, line string) {
+func writeLine(path string, line string) {
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatal(err)
@@ -37,8 +37,8 @@ func WriteLine(path string, line string) {
 	fmt.Fprintln(file, line)
 }
 
-func DeleteLine(path string, line string) error {
-	lines, err := GetLines(path)
+func deleteLine(path string, line string) error {
+	lines, err := getLines(path)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func DeleteLine(path string, line string) error {
 
 	for _, l := range lines {
 		if l != line {
-			WriteLine(path, l)
+			writeLine(path, l)
 		}
 	}
 
