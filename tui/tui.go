@@ -2,7 +2,7 @@ package tui
 
 import (
 	"crypto/md5"
-	"errors"
+	//"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -35,9 +35,10 @@ type Tui struct {
 }
 
 func (t *Tui) AddFeedFromURL(url string) error {
-	for _, feed := range t.MainWidget.Feeds {
+	existingIndex := -1
+	for i, feed := range t.MainWidget.Feeds {
 		if feed.FeedLink == url {
-			return errors.New("Feed already exist.")
+			existingIndex = i
 		}
 	}
 
@@ -46,7 +47,12 @@ func (t *Tui) AddFeedFromURL(url string) error {
 		return err
 	}
 
-	t.setFeeds(append(t.MainWidget.Feeds, f))
+	if existingIndex != -1 {
+		t.MainWidget.Feeds[existingIndex] = f
+		t.setFeeds(t.MainWidget.Feeds)
+	} else {
+		t.setFeeds(append(t.MainWidget.Feeds, f))
+	}
 	return nil
 }
 
@@ -464,8 +470,6 @@ func (t *Tui) Run() error {
 	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
 	t.RefreshTui()
 
-	wg.Wait()
-
 	err = t.MainWidget.SaveFeeds()
 	if err != nil {
 		return err
@@ -475,6 +479,8 @@ func (t *Tui) Run() error {
 		t.App.Stop()
 		return err
 	}
+
+	wg.Wait()
 
 	return nil
 }
