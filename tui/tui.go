@@ -115,23 +115,31 @@ func (t *Tui) sortFeeds() {
 	})
 }
 
+func (t *Tui) updateFeed(i int) {
+	t.MainWidget.Feeds[i] = feed.GetFeedFromURL(t.MainWidget.Feeds[i].FeedLink, t.MainWidget.Feeds[i].Title)
+	t.setItems(t.MainWidget.Feeds[i].Items)
+}
+
 func (t *Tui) updateSelectedFeed() {
 	t.Notify("Updating...")
 	t.App.ForceDraw()
+
 	row, _ := t.MainWidget.Table.GetSelection()
-	targetFeed := *t.MainWidget.Feeds[row]
-	targetFeed = *feed.GetFeedFromURL(targetFeed.FeedLink, targetFeed.Title)
-	t.setItems(targetFeed.Items)
+	t.updateFeed(row)
+
+	t.MainWidget.SaveFeeds()
 	t.Notify("Updated.")
 }
 
 func (t *Tui) updateAllFeed() {
 	t.Notify("Updating...")
 	t.App.ForceDraw()
-	for _, f := range t.MainWidget.Feeds {
-		f = feed.GetFeedFromURL(f.FeedLink, f.Title)
-		t.setItems(f.Items)
+
+	for i, _ := range t.MainWidget.Feeds {
+		t.updateFeed(i)
 	}
+
+	t.MainWidget.SaveFeeds()
 	t.Notify("Updated.")
 }
 
