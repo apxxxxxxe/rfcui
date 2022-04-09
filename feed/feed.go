@@ -31,10 +31,13 @@ func (a *Item) FormatTime() string {
 	return a.PubDate.Format(timeFormat)
 }
 
-func GetFeedFromURL(url string, forcedTitle string) *Feed {
+func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 	parser := gofeed.NewParser()
 
-	parsedFeed, _ := parser.ParseURL(url)
+	parsedFeed, err := parser.ParseURL(url)
+  if err != nil {
+    return nil, err
+  }
 	color := rand.Intn(256)
 
 	var title string
@@ -52,7 +55,7 @@ func GetFeedFromURL(url string, forcedTitle string) *Feed {
 
 	feed.Items = formatItems(feed.Items)
 
-	return feed
+	return feed, nil
 }
 
 func formatItems(items []*Item) []*Item {

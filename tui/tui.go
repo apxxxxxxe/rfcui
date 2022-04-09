@@ -19,15 +19,19 @@ import (
 	"github.com/rivo/tview"
 )
 
-const datapath = "feedcache"
+const (
+	datapath   = "feedcache"
+	inputField = "InputPopup"
+)
 
 type Tui struct {
-	App        *tview.Application
-	Pages      *tview.Pages
-	MainWidget *MainWidget
-	SubWidget  *SubWidget
-	Info       *tview.TextView
-	Help       *tview.TextView
+	App         *tview.Application
+	Pages       *tview.Pages
+	MainWidget  *MainWidget
+	SubWidget   *SubWidget
+	Info        *tview.TextView
+	Help        *tview.TextView
+	InputWidget *InputBox
 }
 
 func (t *Tui) AddFeedFromURL(url string) error {
@@ -36,7 +40,12 @@ func (t *Tui) AddFeedFromURL(url string) error {
 			return errors.New("Feed already exist.")
 		}
 	}
-	f := feed.GetFeedFromURL(url, "")
+
+	f, err := feed.GetFeedFromURL(url, "")
+	if err != nil {
+		return err
+	}
+
 	t.setFeeds(append(t.MainWidget.Feeds, f))
 	return nil
 }
@@ -120,32 +129,46 @@ func (t *Tui) sortFeeds() {
 	})
 }
 
-func (t *Tui) updateFeed(i int) {
-	t.MainWidget.Feeds[i] = feed.GetFeedFromURL(t.MainWidget.Feeds[i].FeedLink, t.MainWidget.Feeds[i].Title)
+func (t *Tui) updateFeed(i int) error {
+	var err error
+
+	t.MainWidget.Feeds[i], err = feed.GetFeedFromURL(t.MainWidget.Feeds[i].FeedLink, t.MainWidget.Feeds[i].Title)
+	if err != nil {
+		return err
+	}
+
 	t.setItems(t.MainWidget.Feeds[i].Items)
+	return nil
 }
 
-func (t *Tui) updateSelectedFeed() {
+func (t *Tui) updateSelectedFeed() error {
 	t.Notify("Updating...")
 	t.App.ForceDraw()
 
 	row, _ := t.MainWidget.Table.GetSelection()
-	t.updateFeed(row)
-
-	t.MainWidget.SaveFeeds()
-	t.Notify("Updated.")
-}
-
-func (t *Tui) updateAllFeed() {
-	t.Notify("Updating...")
-	t.App.ForceDraw()
-
-	for i, _ := range t.MainWidget.Feeds {
-		t.updateFeed(i)
+	if err := t.updateFeed(row); err != nil {
+		return err
 	}
 
 	t.MainWidget.SaveFeeds()
 	t.Notify("Updated.")
+
+	return nil
+}
+
+func (t *Tui) updateAllFeed() error {
+	t.Notify("Updating...")
+	t.App.ForceDraw()
+
+	for i, _ := range t.MainWidget.Feeds {
+		if err := t.updateFeed(i); err != nil {
+			return err
+		}
+	}
+
+	t.MainWidget.SaveFeeds()
+	t.Notify("Updated.")
+	return nil
 }
 
 func (t *Tui) selectMainRow() {
@@ -231,6 +254,11 @@ func (s *SubWidget) GetItemTitles() []string {
 	return titles
 }
 
+type InputBox struct {
+	Input *tview.InputField
+	Mode  int
+}
+
 func NewTui() *Tui {
 
 	mainTable := tview.NewTable()
@@ -246,7 +274,9 @@ func NewTui() *Tui {
 
 	helpWidget := tview.NewTextView().SetTextAlign(1)
 
-	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+	inputWidget := tview.NewInputField()
+
+	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
 			AddItem(mainTable, 0, 1, false).
 			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
@@ -255,13 +285,26 @@ func NewTui() *Tui {
 				0, 2, false),
 			0, 1, false).AddItem(helpWidget, 1, 0, false)
 
+	inputFlex := tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(inputWidget, 20, 1, false).
+			AddItem(nil, 0, 1, false), 40, 1, false).
+		AddItem(nil, 0, 1, false)
+
+	pages := tview.NewPages().
+		AddPage("MainPage", mainFlex, true, true).
+		AddPage(inputField, inputFlex, true, false)
+
 	tui := &Tui{
-		App:        tview.NewApplication(),
-		Pages:      tview.NewPages().AddPage("MainPage", flex, true, true),
-		MainWidget: &MainWidget{mainTable, []*feed.Feed{}},
-		SubWidget:  &SubWidget{subTable, []*feed.Item{}},
-		Info:       infoWidget,
-		Help:       helpWidget,
+		App:         tview.NewApplication(),
+		Pages:       pages,
+		MainWidget:  &MainWidget{mainTable, []*feed.Feed{}},
+		SubWidget:   &SubWidget{subTable, []*feed.Item{}},
+		Info:        infoWidget,
+		Help:        helpWidget,
+		InputWidget: &InputBox{inputWidget, 0},
 	}
 
 	return tui
@@ -349,6 +392,23 @@ func (t *Tui) Run() error {
 			return event
 		})
 
+	t.InputWidget.Input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEnter:
+			//
+			switch t.InputWidget.Mode {
+			case 0: // new feed
+				if err := t.AddFeedFromURL(t.InputWidget.Input.GetText()); err != nil {
+					t.Notify(err.Error())
+				}
+			}
+			t.InputWidget.Input.SetText("")
+			t.Pages.HidePage(inputField)
+			return nil
+		}
+		return event
+	})
+
 	t.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
@@ -356,6 +416,11 @@ func (t *Tui) Run() error {
 			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
+			case 'n':
+				t.Pages.ShowPage(inputField)
+				t.InputWidget.Mode = 0
+				t.App.SetFocus(t.InputWidget.Input)
+				return nil
 			case 'h':
 				t.App.SetFocus(t.MainWidget.Table)
 				t.RefreshTui()
