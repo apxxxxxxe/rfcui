@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/apxxxxxxe/rfcui/feed"
@@ -166,14 +165,16 @@ func (t *Tui) updateAllFeed() error {
 	t.Notify("Updating...")
 	t.App.ForceDraw()
 
-	for i, _ := range t.MainWidget.Feeds {
-		if err := t.updateFeed(i); err != nil {
-			return err
+	go func() {
+		for i := range t.MainWidget.Feeds {
+			t.updateFeed(i)
 		}
-	}
+		t.App.QueueUpdate(func() {
+			t.MainWidget.SaveFeeds()
+			t.Notify("Updated.")
+		})
+	}()
 
-	t.MainWidget.SaveFeeds()
-	t.Notify("Updated.")
 	return nil
 }
 
@@ -211,6 +212,20 @@ func (t *Tui) setFeeds(feeds []*feed.Feed) {
 	t.App.ForceDraw()
 }
 
+func (t *Tui) AddFeedsFromURL(path string) error {
+	feedURLs, err := getLines(path)
+	if err != nil {
+		return err
+	}
+
+	for _, url := range feedURLs {
+		go func(u string) {
+			_ = t.AddFeedFromURL(u)
+		}(url)
+	}
+	return nil
+}
+
 type MainWidget struct {
 	Table *tview.Table `json:"Table"`
 	Feeds []*feed.Feed `json:"Feeds"`
@@ -218,6 +233,10 @@ type MainWidget struct {
 
 func (m *MainWidget) SaveFeeds() error {
 	for _, f := range m.Feeds {
+		if f.Merged {
+			continue
+		}
+
 		b, err := feed.Encode(f)
 		if err != nil {
 			return err
@@ -447,20 +466,11 @@ func (t *Tui) Run() error {
 		return err
 	}
 
-	feedURLs, err := getLines("list.txt")
-	if err != nil {
+	if err := t.AddFeedsFromURL("list.txt"); err != nil {
 		return err
 	}
 
-	var wg sync.WaitGroup
-
-	for _, url := range feedURLs {
-		wg.Add(1)
-		go func(u string) {
-			defer wg.Done()
-			_ = t.AddFeedFromURL(u)
-		}(url)
-	}
+	t.MainWidget.Feeds = append(t.MainWidget.Feeds, &feed.Feed{Merged: true, Title: "All Items"})
 
 	if len(t.MainWidget.Feeds) > 0 {
 		t.setFeeds(t.MainWidget.Feeds)
@@ -479,8 +489,6 @@ func (t *Tui) Run() error {
 		t.App.Stop()
 		return err
 	}
-
-	wg.Wait()
 
 	return nil
 }
