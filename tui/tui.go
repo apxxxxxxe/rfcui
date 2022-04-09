@@ -275,6 +275,7 @@ func NewTui() *Tui {
 	helpWidget := tview.NewTextView().SetTextAlign(1)
 
 	inputWidget := tview.NewInputField()
+	inputWidget.SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
 	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -289,7 +290,7 @@ func NewTui() *Tui {
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(inputWidget, 20, 1, false).
+			AddItem(inputWidget, 3, 1, false).
 			AddItem(nil, 0, 1, false), 40, 1, false).
 		AddItem(nil, 0, 1, false)
 
@@ -403,13 +404,18 @@ func (t *Tui) Run() error {
 				}
 			}
 			t.InputWidget.Input.SetText("")
+			t.InputWidget.Input.SetTitle("Input")
 			t.Pages.HidePage(inputField)
+			t.App.SetFocus(t.MainWidget.Table)
 			return nil
 		}
 		return event
 	})
 
 	t.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if t.App.GetFocus() == t.InputWidget.Input {
+			return event
+		}
 		switch event.Key() {
 		case tcell.KeyEscape:
 			t.App.Stop()
@@ -417,8 +423,9 @@ func (t *Tui) Run() error {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'n':
-				t.Pages.ShowPage(inputField)
+				t.InputWidget.Input.SetTitle("New Feed")
 				t.InputWidget.Mode = 0
+				t.Pages.ShowPage(inputField)
 				t.App.SetFocus(t.InputWidget.Input)
 				return nil
 			case 'h':
