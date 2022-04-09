@@ -62,7 +62,7 @@ func Decode(data []byte) *Feed {
 }
 
 func SaveBytes(data []byte, path string) error {
-	file, err := os.Create(filepath.Join(".", path))
+	file, err := os.Create(path)
 	if err != nil {
 		panic(err)
 	}

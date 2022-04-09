@@ -48,6 +48,11 @@ func (t *Tui) LoadCells(table *tview.Table, texts []string) {
 	}
 }
 
+func getDataPath() string {
+	pwd, _ := os.Getwd()
+	return filepath.Join(pwd, datapath)
+}
+
 func (t *Tui) Notify(text string) {
 	t.Info.SetText(text)
 }
@@ -197,7 +202,7 @@ func (m *MainWidget) SaveFeeds() error {
 			return err
 		}
 		hash := fmt.Sprintf("%x", md5.Sum([]byte(f.FeedLink)))
-		feed.SaveBytes(b, filepath.Join(datapath, hash))
+		feed.SaveBytes(b, filepath.Join(getDataPath(), hash))
 	}
 	return nil
 }
@@ -367,11 +372,11 @@ func (t *Tui) Run() error {
 		return event
 	})
 
-	if !feed.IsDir(datapath) {
-		os.MkdirAll(datapath, 0755)
+	if !feed.IsDir(getDataPath()) {
+		os.MkdirAll(getDataPath(), 0755)
 	}
 
-	err := t.MainWidget.LoadFeeds(datapath)
+	err := t.MainWidget.LoadFeeds(getDataPath())
 	if err != nil {
 		return err
 	}
