@@ -210,14 +210,6 @@ type MainWidget struct {
 	Feeds []*feed.Feed `json:"Feeds"`
 }
 
-func (m *MainWidget) GetFeedTitles() []string {
-	titles := []string{}
-	for _, feed := range m.Feeds {
-		titles = append(titles, feed.Title)
-	}
-	return titles
-}
-
 func (m *MainWidget) SaveFeeds() error {
 	for _, f := range m.Feeds {
 		b, err := feed.Encode(f)
@@ -244,14 +236,6 @@ func (m *MainWidget) LoadFeeds(path string) error {
 type SubWidget struct {
 	Table *tview.Table `json:"SubTable"`
 	Items []*feed.Item `json:"Items"`
-}
-
-func (s *SubWidget) GetItemTitles() []string {
-	titles := []string{}
-	for _, item := range s.Items {
-		titles = append(titles, item.Title)
-	}
-	return titles
 }
 
 type InputBox struct {
@@ -308,28 +292,12 @@ func NewTui() *Tui {
 		InputWidget: &InputBox{inputWidget, 0},
 	}
 
+	tui.setAppFunctions()
+
 	return tui
 }
 
-func execCmd(attachStd bool, cmd string, args ...string) error {
-	command := exec.Command(cmd, args...)
-
-	if attachStd {
-		command.Stdin = os.Stdin
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-	}
-	defer func() {
-		command.Stdin = nil
-		command.Stdout = nil
-		command.Stderr = nil
-	}()
-
-	return command.Run()
-}
-
-func (t *Tui) Run() error {
-
+func (t *Tui) setAppFunctions() {
 	t.MainWidget.Table.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 			t.MainWidget.Table.SetSelectable(true, true)
@@ -443,6 +411,26 @@ func (t *Tui) Run() error {
 		}
 		return event
 	})
+}
+
+func execCmd(attachStd bool, cmd string, args ...string) error {
+	command := exec.Command(cmd, args...)
+
+	if attachStd {
+		command.Stdin = os.Stdin
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+	}
+	defer func() {
+		command.Stdin = nil
+		command.Stdout = nil
+		command.Stderr = nil
+	}()
+
+	return command.Run()
+}
+
+func (t *Tui) Run() error {
 
 	if !feed.IsDir(getDataPath()) {
 		os.MkdirAll(getDataPath(), 0755)
@@ -469,10 +457,9 @@ func (t *Tui) Run() error {
 	}
 
 	if len(t.MainWidget.Feeds) > 0 {
-		t.SubWidget.Items = t.MainWidget.Feeds[0].Items
+		t.setFeeds(t.MainWidget.Feeds)
+		t.setItems(t.MainWidget.Feeds[0].Items)
 	}
-	t.LoadCells(t.MainWidget.Table, t.MainWidget.GetFeedTitles())
-	t.LoadCells(t.SubWidget.Table, t.SubWidget.GetItemTitles())
 
 	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
 	t.RefreshTui()
