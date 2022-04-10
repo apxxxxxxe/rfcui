@@ -214,6 +214,25 @@ func (t *Tui) AddFeedsFromURL(path string) error {
 		return err
 	}
 
+	fileNames := []string{}
+	for _, fp := range feed.DirWalk(getDataPath()) {
+		fileNames = append(fileNames, filepath.Base(fp))
+	}
+
+	newURLs := []string{}
+	for _, feedLink := range feedURLs {
+		isNewURL := true
+		hash := fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
+		for _, fileName := range fileNames {
+			if filepath.Base(fileName) == hash {
+				isNewURL = false
+			}
+		}
+		if isNewURL {
+			newURLs = append(newURLs, feedLink)
+		}
+	}
+
 	//ch := make(chan string, count)
 	//go func() {
 	//	for _, url := range feedURLs {
@@ -231,7 +250,7 @@ func (t *Tui) AddFeedsFromURL(path string) error {
 
 	wg := sync.WaitGroup{}
 
-	for _, url := range feedURLs {
+	for _, url := range newURLs {
 		wg.Add(1)
 		go func(u string) {
 			_ = t.AddFeedFromURL(u)
@@ -492,6 +511,10 @@ func (t *Tui) Run() error {
 		return err
 	}
 
+	if len(t.MainWidget.Feeds) > 0 {
+		t.setFeeds(t.MainWidget.Feeds)
+		t.setItems(t.MainWidget.Feeds[0].Items)
+	}
 	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
 	t.RefreshTui()
 
