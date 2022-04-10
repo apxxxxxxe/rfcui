@@ -218,6 +218,21 @@ func (t *Tui) AddFeedsFromURL(path string) error {
 		return err
 	}
 
+	//ch := make(chan string, count)
+	//go func() {
+	//	for _, url := range feedURLs {
+	//		ch <- url
+	//	}
+	//	close(ch)
+	//}()
+	//for i := 0; i < count; i++ {
+	//	for url := range ch {
+	//		if err := t.AddFeedFromURL(url); err != nil {
+	//			panic(err)
+	//		}
+	//	}
+	//}
+
 	wg := sync.WaitGroup{}
 
 	for _, url := range feedURLs {
@@ -464,10 +479,6 @@ func execCmd(attachStd bool, cmd string, args ...string) error {
 
 func (t *Tui) Run() error {
 
-	if !feed.IsDir(getDataPath()) {
-		os.MkdirAll(getDataPath(), 0755)
-	}
-
 	err := t.MainWidget.LoadFeeds(getDataPath())
 	if err != nil {
 		return err
@@ -477,18 +488,13 @@ func (t *Tui) Run() error {
 		return err
 	}
 
-	if len(t.MainWidget.Feeds) > 0 {
-		t.setFeeds(t.MainWidget.Feeds)
-		t.setItems(t.MainWidget.Feeds[0].Items)
-	}
-
-	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
-	t.RefreshTui()
-
 	err = t.MainWidget.SaveFeeds()
 	if err != nil {
 		return err
 	}
+
+	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
+	t.RefreshTui()
 
 	if err := t.App.Run(); err != nil {
 		t.App.Stop()
