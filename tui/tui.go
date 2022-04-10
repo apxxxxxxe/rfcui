@@ -34,25 +34,21 @@ type Tui struct {
 }
 
 func (t *Tui) AddFeedFromURL(url string) error {
-	existingIndex := -1
-	for i, feed := range t.MainWidget.Feeds {
-		if feed.FeedLink == url {
-			existingIndex = i
-		}
-	}
-
 	f, err := feed.GetFeedFromURL(url, "")
 	if err != nil {
 		return err
 	}
 
-	if existingIndex != -1 {
-		t.MainWidget.Feeds[existingIndex] = f
-		t.setFeeds(t.MainWidget.Feeds)
-	} else {
-		t.setFeeds(append(t.MainWidget.Feeds, f))
+	for i, feed := range t.MainWidget.Feeds {
+		if feed.FeedLink == url {
+			t.MainWidget.Feeds[i] = f
+			t.setFeeds(t.MainWidget.Feeds)
+			return nil
+		}
 	}
+	t.setFeeds(append(t.MainWidget.Feeds, f))
 	return nil
+
 }
 
 func (t *Tui) LoadCells(table *tview.Table, texts []string) {
@@ -270,6 +266,9 @@ func (m *MainWidget) SaveFeeds() error {
 }
 
 func (m *MainWidget) LoadFeeds(path string) error {
+	if !feed.IsDir(getDataPath()) {
+		os.MkdirAll(getDataPath(), 0755)
+	}
 	for _, file := range feed.DirWalk(path) {
 		b, err := ioutil.ReadFile(file)
 		if err != nil {
