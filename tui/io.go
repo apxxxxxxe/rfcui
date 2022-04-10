@@ -8,23 +8,25 @@ import (
 	"path/filepath"
 )
 
-func getLines(path string) ([]string, error) {
+func getLines(path string) (int, []string, error) {
 	pwd, _ := os.Getwd()
 	fp, err := os.Open(filepath.Join(pwd, path))
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	defer fp.Close()
 
 	var lines []string
 	scanner := bufio.NewScanner(fp)
+	lineCount := 0
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
+		lineCount++
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return 0, nil, err
 	}
-	return lines, nil
+	return lineCount, lines, nil
 }
 
 func writeLine(path string, line string) {
@@ -38,7 +40,7 @@ func writeLine(path string, line string) {
 }
 
 func deleteLine(path string, line string) error {
-	lines, err := getLines(path)
+	_, lines, err := getLines(path)
 	if err != nil {
 		return err
 	}

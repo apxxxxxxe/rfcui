@@ -213,16 +213,25 @@ func (t *Tui) setFeeds(feeds []*feed.Feed) {
 }
 
 func (t *Tui) AddFeedsFromURL(path string) error {
-	feedURLs, err := getLines(path)
+	count, feedURLs, err := getLines(path)
 	if err != nil {
 		return err
 	}
 
-	for _, url := range feedURLs {
-		go func(u string) {
-			_ = t.AddFeedFromURL(u)
-		}(url)
+	ch := make(chan string, count)
+	defer close(ch)
+	for i := 0; i < count; i++ {
+		go func() {
+			for url := range ch {
+				_ = t.AddFeedFromURL(url)
+			}
+		}()
 	}
+
+	for _, url := range feedURLs {
+		ch <- url
+	}
+
 	return nil
 }
 
@@ -469,8 +478,6 @@ func (t *Tui) Run() error {
 	if err := t.AddFeedsFromURL("list.txt"); err != nil {
 		return err
 	}
-
-	t.MainWidget.Feeds = append(t.MainWidget.Feeds, &feed.Feed{Merged: true, Title: "All Items"})
 
 	if len(t.MainWidget.Feeds) > 0 {
 		t.setFeeds(t.MainWidget.Feeds)
