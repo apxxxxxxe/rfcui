@@ -2,7 +2,6 @@ package tui
 
 import (
 	"crypto/md5"
-	//"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/apxxxxxxe/rfcui/feed"
@@ -213,24 +213,22 @@ func (t *Tui) setFeeds(feeds []*feed.Feed) {
 }
 
 func (t *Tui) AddFeedsFromURL(path string) error {
-	count, feedURLs, err := getLines(path)
+	_, feedURLs, err := getLines(path)
 	if err != nil {
 		return err
 	}
 
-	ch := make(chan string, count)
-	defer close(ch)
-	for i := 0; i < count; i++ {
-		go func() {
-			for url := range ch {
-				_ = t.AddFeedFromURL(url)
-			}
-		}()
-	}
+	wg := sync.WaitGroup{}
 
 	for _, url := range feedURLs {
-		ch <- url
+		wg.Add(1)
+		go func(u string) {
+			_ = t.AddFeedFromURL(u)
+			wg.Done()
+		}(url)
 	}
+
+	wg.Wait()
 
 	return nil
 }
