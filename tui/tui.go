@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	datapath   = "feedcache"
 	inputField = "InputPopup"
 )
 
@@ -61,6 +60,7 @@ func (t *Tui) LoadCells(table *tview.Table, texts []string) {
 }
 
 func getDataPath() string {
+	const datapath = "feedcache"
 	pwd, _ := os.Getwd()
 	return filepath.Join(pwd, datapath)
 }
@@ -79,9 +79,11 @@ func (t *Tui) UpdateHelp(text string) {
 
 func (t *Tui) RefreshTui() {
 	if t.MainWidget.Table.HasFocus() {
-		t.selectMainRow()
+		row, column := t.MainWidget.Table.GetSelection()
+		t.selectMainRow(row, column)
 	} else if t.SubWidget.Table.HasFocus() {
-		t.selectSubRow()
+		row, column := t.SubWidget.Table.GetSelection()
+		t.selectSubRow(row, column)
 	}
 }
 
@@ -104,14 +106,8 @@ func (t *Tui) deleteFeed(i int) {
 
 func (t *Tui) GetTodaysFeeds() {
 	const feedname = "Today's Items"
-	for i, f := range t.MainWidget.Feeds {
-		if f.Title == feedname {
-			t.deleteFeed(i)
-			break
-		}
-	}
+
 	targetfeed := feed.MergeFeeds(t.MainWidget.Feeds, feedname)
-	t.MainWidget.Feeds = append(t.MainWidget.Feeds, targetfeed)
 
 	// 現在時刻より未来のフィードを除外
 	now := time.Now()
@@ -123,6 +119,38 @@ func (t *Tui) GetTodaysFeeds() {
 		}
 	}
 	targetfeed.Items = result
+
+	isExist := false
+	for i, f := range t.MainWidget.Feeds {
+		if f.Title == feedname {
+			t.MainWidget.Feeds[i] = targetfeed
+			isExist = true
+			break
+		}
+	}
+	if !isExist {
+		t.MainWidget.Feeds = append(t.MainWidget.Feeds, targetfeed)
+	}
+	t.setFeeds(t.MainWidget.Feeds)
+
+}
+
+func (t *Tui) GetAllItems() {
+	const feedname = "All Items"
+
+	targetfeed := feed.MergeFeeds(t.MainWidget.Feeds, feedname)
+
+	isExist := false
+	for i, f := range t.MainWidget.Feeds {
+		if f.Title == feedname {
+			t.MainWidget.Feeds[i] = targetfeed
+			isExist = true
+			break
+		}
+	}
+	if !isExist {
+		t.MainWidget.Feeds = append(t.MainWidget.Feeds, targetfeed)
+	}
 	t.setFeeds(t.MainWidget.Feeds)
 }
 
@@ -137,8 +165,12 @@ func (t *Tui) sortFeeds() {
 }
 
 func (t *Tui) updateFeed(i int) error {
-	var err error
+	if t.MainWidget.Feeds[i].Merged {
+		//return errors.New("merged feed can't update")
+		return nil
+	}
 
+	var err error
 	t.MainWidget.Feeds[i], err = feed.GetFeedFromURL(t.MainWidget.Feeds[i].FeedLink, t.MainWidget.Feeds[i].Title)
 	if err != nil {
 		return err
@@ -158,6 +190,8 @@ func (t *Tui) updateSelectedFeed() error {
 
 	t.MainWidget.SaveFeeds()
 	t.setItems(t.MainWidget.Feeds[row].Items)
+	t.GetTodaysFeeds()
+	t.GetAllItems()
 	t.Notify("Updated.")
 	t.App.SetFocus(t.MainWidget.Table)
 
@@ -184,27 +218,28 @@ func (t *Tui) updateAllFeed() error {
 	}
 	wg.Wait()
 
+	t.GetTodaysFeeds()
+	t.GetAllItems()
 	t.MainWidget.SaveFeeds()
 	t.Notify("All feeds have updated.")
 
 	return nil
 }
 
-func (t *Tui) selectMainRow() {
-	row, _ := t.MainWidget.Table.GetSelection()
-	if len(t.MainWidget.Feeds) != 0 {
-		feed := t.MainWidget.Feeds[row]
-		t.setItems(feed.Items)
+func (t *Tui) selectMainRow(row, column int) {
+	feed := t.MainWidget.Feeds[row]
+	t.setItems(feed.Items)
+	if t.App.GetFocus() == t.MainWidget.Table {
 		t.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
 		t.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
 }
 
-func (t *Tui) selectSubRow() {
-	row, _ := t.SubWidget.Table.GetSelection()
-	if len(t.SubWidget.Items) != 0 {
-		item := t.SubWidget.Items[row]
+func (t *Tui) selectSubRow(row, column int) {
+	item := t.SubWidget.Items[row]
+	if t.App.GetFocus() == t.SubWidget.Table {
 		t.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		t.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 	}
 }
 
@@ -386,29 +421,14 @@ func NewTui() *Tui {
 }
 
 func (t *Tui) setAppFunctions() {
-	t.MainWidget.Table.SetDoneFunc(func(key tcell.Key) {
-		if key == tcell.KeyEnter {
-			t.MainWidget.Table.SetSelectable(true, true)
-		}
-	}).SetSelectedFunc(func(row int, column int) {
-		t.MainWidget.Table.GetCell(row, column).SetTextColor(tcell.ColorRed)
-		t.MainWidget.Table.SetSelectable(false, false)
-	}).SetSelectionChangedFunc(func(row, column int) {
-		feed := t.MainWidget.Feeds[row]
-		t.setItems(feed.Items)
-		if t.App.GetFocus() == t.MainWidget.Table {
-			t.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
-		}
+	t.MainWidget.Table.SetSelectionChangedFunc(func(row, column int) {
+		t.selectMainRow(row, column)
 	})
 
 	t.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
-			case 't':
-				t.GetTodaysFeeds()
-				t.UpdateHelp("gettting Today's Feed...")
-				return nil
 			case 'R':
 				t.updateAllFeed()
 				return nil
@@ -421,10 +441,7 @@ func (t *Tui) setAppFunctions() {
 	})
 
 	t.SubWidget.Table.SetSelectionChangedFunc(func(row, column int) {
-		item := t.SubWidget.Items[row]
-		if t.App.GetFocus() == t.SubWidget.Table {
-			t.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
-		}
+		t.selectSubRow(row, column)
 	}).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
@@ -538,11 +555,15 @@ func (t *Tui) Run() error {
 		return err
 	}
 
+	t.GetTodaysFeeds()
+	t.GetAllItems()
+
 	if len(t.MainWidget.Feeds) > 0 {
 		t.setFeeds(t.MainWidget.Feeds)
 		t.setItems(t.MainWidget.Feeds[0].Items)
 	}
 	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
+	t.RefreshTui()
 
 	if err := t.App.Run(); err != nil {
 		t.App.Stop()
