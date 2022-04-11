@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/apxxxxxxe/rfcui/feed"
-	iocmd "github.com/apxxxxxxe/rfcui/io"
+	myio "github.com/apxxxxxxe/rfcui/io"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -221,7 +221,7 @@ func (t *Tui) AddFeedsFromURL(path string) error {
 	}
 
 	fileNames := []string{}
-	for _, fp := range iocmd.DirWalk(getDataPath()) {
+	for _, fp := range myio.DirWalk(getDataPath()) {
 		fileNames = append(fileNames, filepath.Base(fp))
 	}
 
@@ -285,16 +285,16 @@ func (m *MainWidget) SaveFeeds() error {
 			return err
 		}
 		hash := fmt.Sprintf("%x", md5.Sum([]byte(f.FeedLink)))
-		iocmd.SaveBytes(b, filepath.Join(getDataPath(), hash))
+		myio.SaveBytes(b, filepath.Join(getDataPath(), hash))
 	}
 	return nil
 }
 
 func (m *MainWidget) LoadFeeds(path string) error {
-	if !iocmd.IsDir(getDataPath()) {
+	if !myio.IsDir(getDataPath()) {
 		os.MkdirAll(getDataPath(), 0755)
 	}
-	for _, file := range iocmd.DirWalk(path) {
+	for _, file := range myio.DirWalk(path) {
 		b, err := ioutil.ReadFile(file)
 		if err != nil {
 			return err
