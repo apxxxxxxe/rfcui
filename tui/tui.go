@@ -144,7 +144,6 @@ func (t *Tui) updateFeed(i int) error {
 		return err
 	}
 
-	t.setItems(t.MainWidget.Feeds[i].Items)
 	return nil
 }
 
@@ -158,7 +157,9 @@ func (t *Tui) updateSelectedFeed() error {
 	}
 
 	t.MainWidget.SaveFeeds()
+	t.setItems(t.MainWidget.Feeds[row].Items)
 	t.Notify("Updated.")
+	t.App.SetFocus(t.MainWidget.Table)
 
 	return nil
 }
@@ -395,7 +396,9 @@ func (t *Tui) setAppFunctions() {
 	}).SetSelectionChangedFunc(func(row, column int) {
 		feed := t.MainWidget.Feeds[row]
 		t.setItems(feed.Items)
-		t.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
+		if t.App.GetFocus() == t.MainWidget.Table {
+			t.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
+		}
 	})
 
 	t.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -419,7 +422,9 @@ func (t *Tui) setAppFunctions() {
 
 	t.SubWidget.Table.SetSelectionChangedFunc(func(row, column int) {
 		item := t.SubWidget.Items[row]
-		t.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		if t.App.GetFocus() == t.SubWidget.Table {
+			t.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		}
 	}).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
@@ -538,7 +543,6 @@ func (t *Tui) Run() error {
 		t.setItems(t.MainWidget.Feeds[0].Items)
 	}
 	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
-	t.RefreshTui()
 
 	if err := t.App.Run(); err != nil {
 		t.App.Stop()
