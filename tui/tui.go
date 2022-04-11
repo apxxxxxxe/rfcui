@@ -28,6 +28,7 @@ type Tui struct {
 	Pages       *tview.Pages
 	MainWidget  *MainWidget
 	SubWidget   *SubWidget
+	Description *tview.TextView
 	Info        *tview.TextView
 	Help        *tview.TextView
 	InputWidget *InputBox
@@ -61,6 +62,10 @@ func (t *Tui) LoadCells(table *tview.Table, texts []string) {
 func getDataPath() string {
 	pwd, _ := os.Getwd()
 	return filepath.Join(pwd, datapath)
+}
+
+func (t *Tui) showDescription(text string) {
+	t.Description.SetText(text)
 }
 
 func (t *Tui) Notify(text string) {
@@ -143,7 +148,7 @@ func (t *Tui) updateFeed(i int) error {
 }
 
 func (t *Tui) updateSelectedFeed() error {
-	t.Notify("Updating...")
+	t.showDescription("Updating...")
 	t.App.ForceDraw()
 
 	row, _ := t.MainWidget.Table.GetSelection()
@@ -152,13 +157,13 @@ func (t *Tui) updateSelectedFeed() error {
 	}
 
 	t.MainWidget.SaveFeeds()
-	t.Notify("Updated.")
+	t.showDescription("Updated.")
 
 	return nil
 }
 
 func (t *Tui) updateAllFeed() error {
-	t.Notify("Updating...")
+	t.showDescription("Updating...")
 	t.App.ForceDraw()
 
 	go func() {
@@ -167,7 +172,7 @@ func (t *Tui) updateAllFeed() error {
 		}
 		t.App.QueueUpdate(func() {
 			t.MainWidget.SaveFeeds()
-			t.Notify("Updated.")
+			t.showDescription("Updated.")
 		})
 	}()
 
@@ -179,7 +184,7 @@ func (t *Tui) selectMainRow() {
 	if len(t.MainWidget.Feeds) != 0 {
 		feed := t.MainWidget.Feeds[row]
 		t.setItems(feed.Items)
-		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link))
+		t.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
 		t.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
 }
@@ -188,7 +193,7 @@ func (t *Tui) selectSubRow() {
 	row, _ := t.SubWidget.Table.GetSelection()
 	if len(t.SubWidget.Items) != 0 {
 		item := t.SubWidget.Items[row]
-		t.Notify(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		t.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
 	}
 }
 
@@ -318,6 +323,9 @@ func NewTui() *Tui {
 	subTable.SetTitle("Items").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	subTable.Select(0, 0).SetSelectable(true, true)
 
+	descriptionWidget := tview.NewTextView()
+	descriptionWidget.SetTitle("Description").SetBorder(true).SetTitleAlign(tview.AlignLeft)
+
 	infoWidget := tview.NewTextView()
 	infoWidget.SetTitle("Info").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
@@ -328,10 +336,13 @@ func NewTui() *Tui {
 
 	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(mainTable, 0, 1, false).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(mainTable, 0, 4, false).
+				AddItem(infoWidget, 0, 1, false),
+				0, 1, false).
 			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 				AddItem(subTable, 0, 3, false).
-				AddItem(infoWidget, 0, 1, false),
+				AddItem(descriptionWidget, 0, 1, false),
 				0, 2, false),
 			0, 1, false).AddItem(helpWidget, 1, 0, false)
 
@@ -352,6 +363,7 @@ func NewTui() *Tui {
 		Pages:       pages,
 		MainWidget:  &MainWidget{mainTable, []*feed.Feed{}},
 		SubWidget:   &SubWidget{subTable, []*feed.Item{}},
+		Description: descriptionWidget,
 		Info:        infoWidget,
 		Help:        helpWidget,
 		InputWidget: &InputBox{inputWidget, 0},
@@ -373,7 +385,7 @@ func (t *Tui) setAppFunctions() {
 	}).SetSelectionChangedFunc(func(row, column int) {
 		feed := t.MainWidget.Feeds[row]
 		t.setItems(feed.Items)
-		t.Notify(fmt.Sprint(feed.Title, "\n", feed.Link))
+		t.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
 	})
 
 	t.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -397,7 +409,7 @@ func (t *Tui) setAppFunctions() {
 
 	t.SubWidget.Table.SetSelectionChangedFunc(func(row, column int) {
 		item := t.SubWidget.Items[row]
-		t.Notify(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		t.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
 	}).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
@@ -405,7 +417,7 @@ func (t *Tui) setAppFunctions() {
 				row, _ := t.SubWidget.Table.GetSelection()
 				browser := os.Getenv("BROWSER")
 				if browser == "" {
-					t.Notify("$BROWSER is empty. Set it and try again.")
+					t.showDescription("$BROWSER is empty. Set it and try again.")
 				} else {
 					execCmd(true, browser, t.SubWidget.Items[row].Link)
 				}
@@ -416,7 +428,7 @@ func (t *Tui) setAppFunctions() {
 					row, _ := t.SubWidget.Table.GetSelection()
 					browser := os.Getenv("BROWSER")
 					if browser == "" {
-						t.Notify("$BROWSER is empty. Set it and try again.")
+						t.showDescription("$BROWSER is empty. Set it and try again.")
 					} else {
 						execCmd(true, browser, t.SubWidget.Items[row].Link)
 					}
