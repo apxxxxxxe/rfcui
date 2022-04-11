@@ -149,7 +149,7 @@ func (t *Tui) updateFeed(i int) error {
 }
 
 func (t *Tui) updateSelectedFeed() error {
-	t.showDescription("Updating...")
+	t.Notify("Updating...")
 	t.App.ForceDraw()
 
 	row, _ := t.MainWidget.Table.GetSelection()
@@ -158,7 +158,7 @@ func (t *Tui) updateSelectedFeed() error {
 	}
 
 	t.MainWidget.SaveFeeds()
-	t.showDescription("Updated.")
+	t.Notify("Updated.")
 
 	return nil
 }
