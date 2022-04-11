@@ -164,18 +164,27 @@ func (t *Tui) updateSelectedFeed() error {
 }
 
 func (t *Tui) updateAllFeed() error {
-	t.showDescription("Updating...")
+	t.Notify("Updating...")
 	t.App.ForceDraw()
 
-	go func() {
-		for i := range t.MainWidget.Feeds {
+	length := len(t.MainWidget.Feeds)
+	doneCount := 0
+
+	wg := sync.WaitGroup{}
+	for index := range t.MainWidget.Feeds {
+		wg.Add(1)
+		go func(i int) {
 			t.updateFeed(i)
-		}
-		t.App.QueueUpdate(func() {
-			t.MainWidget.SaveFeeds()
-			t.showDescription("Updated.")
-		})
-	}()
+			doneCount++
+			t.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds..."))
+			t.App.ForceDraw()
+			wg.Done()
+		}(index)
+	}
+	wg.Wait()
+
+	t.MainWidget.SaveFeeds()
+	t.Notify("All feeds have updated.")
 
 	return nil
 }
