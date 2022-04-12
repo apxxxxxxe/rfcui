@@ -571,6 +571,10 @@ func execCmd(attachStd bool, cmd string, args ...string) error {
 	return command.Run()
 }
 
+func (tui *Tui) Stop() {
+	tui.App.Stop()
+}
+
 func (tui *Tui) Run() error {
 
 	err := tui.MainWidget.LoadFeeds(getDataPath())
@@ -581,6 +585,9 @@ func (tui *Tui) Run() error {
 	if err := tui.AddFeedsFromURL("list.txt"); err != nil {
 		return err
 	}
+
+	tui.GetTodaysFeeds()
+	tui.GetAllItems()
 
 	err = tui.MainWidget.SaveFeeds()
 	if err != nil {
@@ -595,7 +602,7 @@ func (tui *Tui) Run() error {
 	tui.RefreshTui()
 
 	if err := tui.App.Run(); err != nil {
-		tui.App.Stop()
+		tui.Stop()
 		return err
 	}
 
