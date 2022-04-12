@@ -260,7 +260,7 @@ func (t *Tui) setFeeds(feeds []*feed.Feed) {
 }
 
 func (t *Tui) AddFeedsFromURL(path string) error {
-	_, feedURLs, err := getLines(path)
+	_, feedURLs, err := myio.GetLines(path)
 	if err != nil {
 		return err
 	}
@@ -555,8 +555,8 @@ func (t *Tui) Run() error {
 		return err
 	}
 
-	t.GetTodaysFeeds()
 	t.GetAllItems()
+	t.GetTodaysFeeds()
 
 	if len(t.MainWidget.Feeds) > 0 {
 		t.setFeeds(t.MainWidget.Feeds)
