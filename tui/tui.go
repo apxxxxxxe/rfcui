@@ -20,7 +20,9 @@ import (
 )
 
 const (
-	inputField = "InputPopup"
+	inputField      = "InputPopup"
+	descriptionPage = "descriptionPage"
+	mainPage        = "MainPage"
 )
 
 type Tui struct {
@@ -132,7 +134,6 @@ func (t *Tui) GetTodaysFeeds() {
 		t.MainWidget.Feeds = append(t.MainWidget.Feeds, targetfeed)
 	}
 	t.setFeeds(t.MainWidget.Feeds)
-
 }
 
 func (t *Tui) GetAllItems() {
@@ -392,6 +393,18 @@ func NewTui() *Tui {
 				0, 2, false),
 			0, 1, false).AddItem(helpWidget, 1, 0, false)
 
+	descriptionFlex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(mainTable, 0, 4, false).
+				AddItem(infoWidget, 0, 1, false),
+				0, 1, false).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(subTable, 0, 2, false).
+				AddItem(descriptionWidget, 0, 3, false),
+				0, 2, false),
+			0, 1, false).AddItem(helpWidget, 1, 0, false)
+
 	inputFlex := tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
@@ -401,7 +414,8 @@ func NewTui() *Tui {
 		AddItem(nil, 0, 1, false)
 
 	pages := tview.NewPages().
-		AddPage("MainPage", mainFlex, true, true).
+		AddPage(mainPage, mainFlex, true, true).
+		AddPage(descriptionPage, descriptionFlex, true, false).
 		AddPage(inputField, inputFlex, true, false)
 
 	tui := &Tui{
@@ -435,6 +449,10 @@ func (t *Tui) setAppFunctions() {
 			case 'r':
 				t.updateSelectedFeed()
 				return nil
+			case 'l':
+				t.App.SetFocus(t.SubWidget.Table)
+				t.RefreshTui()
+				return nil
 			}
 		}
 		return event
@@ -456,6 +474,15 @@ func (t *Tui) setAppFunctions() {
 				return nil
 			case tcell.KeyRune:
 				switch event.Rune() {
+				case 'h':
+					t.App.SetFocus(t.MainWidget.Table)
+					t.RefreshTui()
+					return nil
+				case 'l':
+					t.Pages.ShowPage(descriptionPage)
+					t.Pages.HidePage(mainPage)
+					t.App.SetFocus(t.Description)
+					return nil
 				case 'o':
 					row, _ := t.SubWidget.Table.GetSelection()
 					browser := os.Getenv("BROWSER")
@@ -469,6 +496,20 @@ func (t *Tui) setAppFunctions() {
 			}
 			return event
 		})
+
+	t.Description.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'h':
+				t.Pages.ShowPage(mainPage)
+				t.Pages.HidePage(descriptionPage)
+				t.App.SetFocus(t.SubWidget.Table)
+				return nil
+			}
+		}
+		return event
+	})
 
 	t.InputWidget.Input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -504,14 +545,6 @@ func (t *Tui) setAppFunctions() {
 				t.InputWidget.Mode = 0
 				t.Pages.ShowPage(inputField)
 				t.App.SetFocus(t.InputWidget.Input)
-				return nil
-			case 'h':
-				t.App.SetFocus(t.MainWidget.Table)
-				t.RefreshTui()
-				return nil
-			case 'l':
-				t.App.SetFocus(t.SubWidget.Table)
-				t.RefreshTui()
 				return nil
 			case 'q':
 				t.App.Stop()
@@ -554,9 +587,6 @@ func (t *Tui) Run() error {
 	if err != nil {
 		return err
 	}
-
-	t.GetAllItems()
-	t.GetTodaysFeeds()
 
 	if len(t.MainWidget.Feeds) > 0 {
 		t.setFeeds(t.MainWidget.Feeds)
