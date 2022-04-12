@@ -36,25 +36,25 @@ type Tui struct {
 	InputWidget *InputBox
 }
 
-func (t *Tui) AddFeedFromURL(url string) error {
+func (tui *Tui) AddFeedFromURL(url string) error {
 	f, err := feed.GetFeedFromURL(url, "")
 	if err != nil {
 		return err
 	}
 
-	for i, feed := range t.MainWidget.Feeds {
+	for i, feed := range tui.MainWidget.Feeds {
 		if feed.FeedLink == url {
-			t.MainWidget.Feeds[i] = f
-			t.setFeeds(t.MainWidget.Feeds)
+			tui.MainWidget.Feeds[i] = f
+			tui.setFeeds(tui.MainWidget.Feeds)
 			return nil
 		}
 	}
-	t.setFeeds(append(t.MainWidget.Feeds, f))
+	tui.setFeeds(append(tui.MainWidget.Feeds, f))
 	return nil
 
 }
 
-func (t *Tui) LoadCells(table *tview.Table, texts []string) {
+func (tui *Tui) LoadCells(table *tview.Table, texts []string) {
 	table.Clear()
 	for i, text := range texts {
 		table.SetCell(i, 0, tview.NewTableCell(text))
@@ -67,49 +67,49 @@ func getDataPath() string {
 	return filepath.Join(pwd, datapath)
 }
 
-func (t *Tui) showDescription(text string) {
-	t.Description.SetText(text)
+func (tui *Tui) showDescription(text string) {
+	tui.Description.SetText(text)
 }
 
-func (t *Tui) Notify(text string) {
-	t.Info.SetText(text)
+func (tui *Tui) Notify(text string) {
+	tui.Info.SetText(text)
 }
 
-func (t *Tui) UpdateHelp(text string) {
-	t.Help.SetText(text)
+func (tui *Tui) UpdateHelp(text string) {
+	tui.Help.SetText(text)
 }
 
-func (t *Tui) RefreshTui() {
-	if t.MainWidget.Table.HasFocus() {
-		row, column := t.MainWidget.Table.GetSelection()
-		t.selectMainRow(row, column)
-	} else if t.SubWidget.Table.HasFocus() {
-		row, column := t.SubWidget.Table.GetSelection()
-		t.selectSubRow(row, column)
+func (tui *Tui) RefreshTui() {
+	if tui.MainWidget.Table.HasFocus() {
+		row, column := tui.MainWidget.Table.GetSelection()
+		tui.selectMainRow(row, column)
+	} else if tui.SubWidget.Table.HasFocus() {
+		row, column := tui.SubWidget.Table.GetSelection()
+		tui.selectSubRow(row, column)
 	}
 }
 
-func (t *Tui) setItems(items []*feed.Item) {
-	t.SubWidget.Items = items
+func (tui *Tui) setItems(items []*feed.Item) {
+	tui.SubWidget.Items = items
 	itemTexts := []string{}
 	for _, item := range items {
 		itemTexts = append(itemTexts, item.Title)
 	}
-	t.LoadCells(t.SubWidget.Table, itemTexts)
-	if t.SubWidget.Table.GetRowCount() != 0 {
-		t.SubWidget.Table.Select(0, 0).ScrollToBeginning()
+	tui.LoadCells(tui.SubWidget.Table, itemTexts)
+	if tui.SubWidget.Table.GetRowCount() != 0 {
+		tui.SubWidget.Table.Select(0, 0).ScrollToBeginning()
 	}
 }
 
-func (t *Tui) deleteFeed(i int) {
-	a := t.MainWidget.Feeds
+func (tui *Tui) deleteFeed(i int) {
+	a := tui.MainWidget.Feeds
 	a = append(a[:i], a[i+1:]...)
 }
 
-func (t *Tui) GetTodaysFeeds() {
+func (tui *Tui) GetTodaysFeeds() {
 	const feedname = "Today's Items"
 
-	targetfeed := feed.MergeFeeds(t.MainWidget.Feeds, feedname)
+	targetfeed := feed.MergeFeeds(tui.MainWidget.Feeds, feedname)
 
 	// 現在時刻より未来のフィードを除外
 	now := time.Now()
@@ -123,56 +123,56 @@ func (t *Tui) GetTodaysFeeds() {
 	targetfeed.Items = result
 
 	isExist := false
-	for i, f := range t.MainWidget.Feeds {
+	for i, f := range tui.MainWidget.Feeds {
 		if f.Title == feedname {
-			t.MainWidget.Feeds[i] = targetfeed
+			tui.MainWidget.Feeds[i] = targetfeed
 			isExist = true
 			break
 		}
 	}
 	if !isExist {
-		t.MainWidget.Feeds = append(t.MainWidget.Feeds, targetfeed)
+		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, targetfeed)
 	}
-	t.setFeeds(t.MainWidget.Feeds)
+	tui.setFeeds(tui.MainWidget.Feeds)
 }
 
-func (t *Tui) GetAllItems() {
+func (tui *Tui) GetAllItems() {
 	const feedname = "All Items"
 
-	targetfeed := feed.MergeFeeds(t.MainWidget.Feeds, feedname)
+	targetfeed := feed.MergeFeeds(tui.MainWidget.Feeds, feedname)
 
 	isExist := false
-	for i, f := range t.MainWidget.Feeds {
+	for i, f := range tui.MainWidget.Feeds {
 		if f.Title == feedname {
-			t.MainWidget.Feeds[i] = targetfeed
+			tui.MainWidget.Feeds[i] = targetfeed
 			isExist = true
 			break
 		}
 	}
 	if !isExist {
-		t.MainWidget.Feeds = append(t.MainWidget.Feeds, targetfeed)
+		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, targetfeed)
 	}
-	t.setFeeds(t.MainWidget.Feeds)
+	tui.setFeeds(tui.MainWidget.Feeds)
 }
 
-func (t *Tui) sortFeeds() {
-	sort.Slice(t.MainWidget.Feeds, func(i, j int) bool {
-		return strings.Compare(t.MainWidget.Feeds[i].Title, t.MainWidget.Feeds[j].Title) == -1
+func (tui *Tui) sortFeeds() {
+	sort.Slice(tui.MainWidget.Feeds, func(i, j int) bool {
+		return strings.Compare(tui.MainWidget.Feeds[i].Title, tui.MainWidget.Feeds[j].Title) == -1
 	})
-	sort.Slice(t.MainWidget.Feeds, func(i, j int) bool {
+	sort.Slice(tui.MainWidget.Feeds, func(i, j int) bool {
 		// Prioritize merged feeds
-		return t.MainWidget.Feeds[i].Merged && !t.MainWidget.Feeds[j].Merged
+		return tui.MainWidget.Feeds[i].Merged && !tui.MainWidget.Feeds[j].Merged
 	})
 }
 
-func (t *Tui) updateFeed(i int) error {
-	if t.MainWidget.Feeds[i].Merged {
+func (tui *Tui) updateFeed(i int) error {
+	if tui.MainWidget.Feeds[i].Merged {
 		//return errors.New("merged feed can't update")
 		return nil
 	}
 
 	var err error
-	t.MainWidget.Feeds[i], err = feed.GetFeedFromURL(t.MainWidget.Feeds[i].FeedLink, t.MainWidget.Feeds[i].Title)
+	tui.MainWidget.Feeds[i], err = feed.GetFeedFromURL(tui.MainWidget.Feeds[i].FeedLink, tui.MainWidget.Feeds[i].Title)
 	if err != nil {
 		return err
 	}
@@ -180,87 +180,87 @@ func (t *Tui) updateFeed(i int) error {
 	return nil
 }
 
-func (t *Tui) updateSelectedFeed() error {
-	t.Notify("Updating...")
-	t.App.ForceDraw()
+func (tui *Tui) updateSelectedFeed() error {
+	tui.Notify("Updating...")
+	tui.App.ForceDraw()
 
-	row, _ := t.MainWidget.Table.GetSelection()
-	if err := t.updateFeed(row); err != nil {
+	row, _ := tui.MainWidget.Table.GetSelection()
+	if err := tui.updateFeed(row); err != nil {
 		return err
 	}
 
-	t.MainWidget.SaveFeeds()
-	t.setItems(t.MainWidget.Feeds[row].Items)
-	t.GetTodaysFeeds()
-	t.GetAllItems()
-	t.Notify("Updated.")
-	t.App.SetFocus(t.MainWidget.Table)
+	tui.MainWidget.SaveFeeds()
+	tui.setItems(tui.MainWidget.Feeds[row].Items)
+	tui.GetTodaysFeeds()
+	tui.GetAllItems()
+	tui.Notify("Updated.")
+	tui.App.SetFocus(tui.MainWidget.Table)
 
 	return nil
 }
 
-func (t *Tui) updateAllFeed() error {
-	t.Notify("Updating...")
-	t.App.ForceDraw()
+func (tui *Tui) updateAllFeed() error {
+	tui.Notify("Updating...")
+	tui.App.ForceDraw()
 
-	length := len(t.MainWidget.Feeds)
+	length := len(tui.MainWidget.Feeds)
 	doneCount := 0
 
 	wg := sync.WaitGroup{}
-	for index := range t.MainWidget.Feeds {
+	for index := range tui.MainWidget.Feeds {
 		wg.Add(1)
 		go func(i int) {
-			t.updateFeed(i)
+			tui.updateFeed(i)
 			doneCount++
-			t.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds..."))
-			t.App.ForceDraw()
+			tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds..."))
+			tui.App.ForceDraw()
 			wg.Done()
 		}(index)
 	}
 	wg.Wait()
 
-	t.GetTodaysFeeds()
-	t.GetAllItems()
-	t.MainWidget.SaveFeeds()
-	t.Notify("All feeds have updated.")
+	tui.GetTodaysFeeds()
+	tui.GetAllItems()
+	tui.MainWidget.SaveFeeds()
+	tui.Notify("All feeds have updated.")
 
 	return nil
 }
 
-func (t *Tui) selectMainRow(row, column int) {
-	feed := t.MainWidget.Feeds[row]
-	t.setItems(feed.Items)
-	if t.App.GetFocus() == t.MainWidget.Table {
-		t.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
-		t.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
+func (tui *Tui) selectMainRow(row, column int) {
+	feed := tui.MainWidget.Feeds[row]
+	tui.setItems(feed.Items)
+	if tui.App.GetFocus() == tui.MainWidget.Table {
+		tui.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
+		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
 }
 
-func (t *Tui) selectSubRow(row, column int) {
-	item := t.SubWidget.Items[row]
-	if t.App.GetFocus() == t.SubWidget.Table {
-		t.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
-		t.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
+func (tui *Tui) selectSubRow(row, column int) {
+	item := tui.SubWidget.Items[row]
+	if tui.App.GetFocus() == tui.SubWidget.Table {
+		tui.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 	}
 }
 
-func (t *Tui) setFeeds(feeds []*feed.Feed) {
-	t.MainWidget.Feeds = feeds
-	t.sortFeeds()
+func (tui *Tui) setFeeds(feeds []*feed.Feed) {
+	tui.MainWidget.Feeds = feeds
+	tui.sortFeeds()
 	feedTitles := []string{}
-	for _, feed := range t.MainWidget.Feeds {
+	for _, feed := range tui.MainWidget.Feeds {
 		feedTitles = append(feedTitles, feed.Title)
 	}
-	t.LoadCells(t.MainWidget.Table, feedTitles)
-	row, _ := t.MainWidget.Table.GetSelection()
-	max := t.MainWidget.Table.GetRowCount() - 1
+	tui.LoadCells(tui.MainWidget.Table, feedTitles)
+	row, _ := tui.MainWidget.Table.GetSelection()
+	max := tui.MainWidget.Table.GetRowCount() - 1
 	if max < row {
-		t.MainWidget.Table.Select(max, 0).ScrollToBeginning()
+		tui.MainWidget.Table.Select(max, 0).ScrollToBeginning()
 	}
-	t.App.ForceDraw()
+	tui.App.ForceDraw()
 }
 
-func (t *Tui) AddFeedsFromURL(path string) error {
+func (tui *Tui) AddFeedsFromURL(path string) error {
 	_, feedURLs, err := myio.GetLines(path)
 	if err != nil {
 		return err
@@ -294,7 +294,7 @@ func (t *Tui) AddFeedsFromURL(path string) error {
 	//}()
 	//for i := 0; i < count; i++ {
 	//	for url := range ch {
-	//		if err := t.AddFeedFromURL(url); err != nil {
+	//		if err := tui.AddFeedFromURL(url); err != nil {
 	//			panic(err)
 	//		}
 	//	}
@@ -305,7 +305,7 @@ func (t *Tui) AddFeedsFromURL(path string) error {
 	for _, url := range newURLs {
 		wg.Add(1)
 		go func(u string) {
-			_ = t.AddFeedFromURL(u)
+			_ = tui.AddFeedFromURL(u)
 			wg.Done()
 		}(url)
 	}
@@ -434,62 +434,61 @@ func NewTui() *Tui {
 	return tui
 }
 
-func (t *Tui) setAppFunctions() {
-	t.MainWidget.Table.SetSelectionChangedFunc(func(row, column int) {
-		t.selectMainRow(row, column)
+func (tui *Tui) setAppFunctions() {
+	tui.MainWidget.Table.SetSelectionChangedFunc(func(row, column int) {
+		tui.selectMainRow(row, column)
 	})
 
-	t.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	tui.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'R':
-				t.updateAllFeed()
+				tui.updateAllFeed()
 				return nil
 			case 'r':
-				t.updateSelectedFeed()
+				tui.updateSelectedFeed()
 				return nil
 			case 'l':
-				t.App.SetFocus(t.SubWidget.Table)
-				t.RefreshTui()
+				tui.App.SetFocus(tui.SubWidget.Table)
+				tui.RefreshTui()
 				return nil
 			}
 		}
 		return event
 	})
 
-	t.SubWidget.Table.SetSelectionChangedFunc(func(row, column int) {
-		t.selectSubRow(row, column)
+	tui.SubWidget.Table.SetSelectionChangedFunc(func(row, column int) {
+		tui.selectSubRow(row, column)
 	}).
 		SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			switch event.Key() {
 			case tcell.KeyEnter:
-				row, _ := t.SubWidget.Table.GetSelection()
+				row, _ := tui.SubWidget.Table.GetSelection()
 				browser := os.Getenv("BROWSER")
 				if browser == "" {
-					t.showDescription("$BROWSER is empty. Set it and try again.")
+					tui.showDescription("$BROWSER is empty. Set it and try again.")
 				} else {
-					execCmd(true, browser, t.SubWidget.Items[row].Link)
+					execCmd(true, browser, tui.SubWidget.Items[row].Link)
 				}
 				return nil
 			case tcell.KeyRune:
 				switch event.Rune() {
 				case 'h':
-					t.App.SetFocus(t.MainWidget.Table)
-					t.RefreshTui()
+					tui.App.SetFocus(tui.MainWidget.Table)
+					tui.RefreshTui()
 					return nil
 				case 'l':
-					t.Pages.ShowPage(descriptionPage)
-					t.Pages.HidePage(mainPage)
-					t.App.SetFocus(t.Description)
+					tui.Pages.SwitchToPage(descriptionPage)
+					tui.App.SetFocus(tui.Description)
 					return nil
 				case 'o':
-					row, _ := t.SubWidget.Table.GetSelection()
+					row, _ := tui.SubWidget.Table.GetSelection()
 					browser := os.Getenv("BROWSER")
 					if browser == "" {
-						t.showDescription("$BROWSER is empty. Set it and try again.")
+						tui.showDescription("$BROWSER is empty. Set it and try again.")
 					} else {
-						execCmd(true, browser, t.SubWidget.Items[row].Link)
+						execCmd(true, browser, tui.SubWidget.Items[row].Link)
 					}
 					return nil
 				}
@@ -497,57 +496,57 @@ func (t *Tui) setAppFunctions() {
 			return event
 		})
 
-	t.Description.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	tui.Description.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'h':
-				t.Pages.ShowPage(mainPage)
-				t.Pages.HidePage(descriptionPage)
-				t.App.SetFocus(t.SubWidget.Table)
+				tui.Pages.ShowPage(mainPage)
+				tui.Pages.HidePage(descriptionPage)
+				tui.App.SetFocus(tui.SubWidget.Table)
 				return nil
 			}
 		}
 		return event
 	})
 
-	t.InputWidget.Input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	tui.InputWidget.Input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
 			//
-			switch t.InputWidget.Mode {
+			switch tui.InputWidget.Mode {
 			case 0: // new feed
-				if err := t.AddFeedFromURL(t.InputWidget.Input.GetText()); err != nil {
-					t.Notify(err.Error())
+				if err := tui.AddFeedFromURL(tui.InputWidget.Input.GetText()); err != nil {
+					tui.Notify(err.Error())
 				}
 			}
-			t.InputWidget.Input.SetText("")
-			t.InputWidget.Input.SetTitle("Input")
-			t.Pages.HidePage(inputField)
-			t.App.SetFocus(t.MainWidget.Table)
+			tui.InputWidget.Input.SetText("")
+			tui.InputWidget.Input.SetTitle("Input")
+			tui.Pages.HidePage(inputField)
+			tui.App.SetFocus(tui.MainWidget.Table)
 			return nil
 		}
 		return event
 	})
 
-	t.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if t.App.GetFocus() == t.InputWidget.Input {
+	tui.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if tui.App.GetFocus() == tui.InputWidget.Input {
 			return event
 		}
 		switch event.Key() {
 		case tcell.KeyEscape:
-			t.App.Stop()
+			tui.App.Stop()
 			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'n':
-				t.InputWidget.Input.SetTitle("New Feed")
-				t.InputWidget.Mode = 0
-				t.Pages.ShowPage(inputField)
-				t.App.SetFocus(t.InputWidget.Input)
+				tui.InputWidget.Input.SetTitle("New Feed")
+				tui.InputWidget.Mode = 0
+				tui.Pages.ShowPage(inputField)
+				tui.App.SetFocus(tui.InputWidget.Input)
 				return nil
 			case 'q':
-				t.App.Stop()
+				tui.App.Stop()
 				return nil
 			}
 		}
@@ -572,31 +571,31 @@ func execCmd(attachStd bool, cmd string, args ...string) error {
 	return command.Run()
 }
 
-func (t *Tui) Run() error {
+func (tui *Tui) Run() error {
 
-	err := t.MainWidget.LoadFeeds(getDataPath())
+	err := tui.MainWidget.LoadFeeds(getDataPath())
 	if err != nil {
 		return err
 	}
 
-	if err := t.AddFeedsFromURL("list.txt"); err != nil {
+	if err := tui.AddFeedsFromURL("list.txt"); err != nil {
 		return err
 	}
 
-	err = t.MainWidget.SaveFeeds()
+	err = tui.MainWidget.SaveFeeds()
 	if err != nil {
 		return err
 	}
 
-	if len(t.MainWidget.Feeds) > 0 {
-		t.setFeeds(t.MainWidget.Feeds)
-		t.setItems(t.MainWidget.Feeds[0].Items)
+	if len(tui.MainWidget.Feeds) > 0 {
+		tui.setFeeds(tui.MainWidget.Feeds)
+		tui.setItems(tui.MainWidget.Feeds[0].Items)
 	}
-	t.App.SetRoot(t.Pages, true).SetFocus(t.MainWidget.Table)
-	t.RefreshTui()
+	tui.App.SetRoot(tui.Pages, true).SetFocus(tui.MainWidget.Table)
+	tui.RefreshTui()
 
-	if err := t.App.Run(); err != nil {
-		t.App.Stop()
+	if err := tui.App.Run(); err != nil {
+		tui.App.Stop()
 		return err
 	}
 
