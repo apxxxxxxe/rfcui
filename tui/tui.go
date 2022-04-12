@@ -181,7 +181,7 @@ func (tui *Tui) updateFeed(i int) error {
 	}
 
 	var err error
-	tui.MainWidget.Feeds[i], err = feed.GetFeedFromURL(tui.MainWidget.Feeds[i].FeedLink, tui.MainWidget.Feeds[i].Title)
+	tui.MainWidget.Feeds[i], err = feed.GetFeedFromURL(tui.MainWidget.Feeds[i].FeedLink, "")
 	if err != nil {
 		return err
 	}
@@ -297,17 +297,29 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 		}
 	}
 
-	wg := sync.WaitGroup{}
-
 	for _, url := range newURLs {
-		wg.Add(1)
-		go func(u string) {
-			_ = tui.AddFeedFromURL(u)
-			wg.Done()
-		}(url)
+		f := &feed.Feed{
+			Title:       url,
+			Color:       15,
+			Description: "update to get details",
+			Link:        "",
+			FeedLink:    url,
+			Items:       []*feed.Item{},
+			Merged:      false,
+		}
+		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, f)
 	}
+	tui.setFeeds(tui.MainWidget.Feeds)
 
-	wg.Wait()
+	//wg := sync.WaitGroup{}
+	//for _, url := range newURLs {
+	//	wg.Add(1)
+	//	go func(u string) {
+	//		_ = tui.AddFeedFromURL(u)
+	//		wg.Done()
+	//	}(url)
+	//}
+	//wg.Wait()
 
 	return nil
 }
