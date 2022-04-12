@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
@@ -8,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -166,7 +166,9 @@ func (tui *Tui) GetAllItems() {
 
 func (tui *Tui) sortFeeds() {
 	sort.Slice(tui.MainWidget.Feeds, func(i, j int) bool {
-		return strings.Compare(tui.MainWidget.Feeds[i].Link, tui.MainWidget.Feeds[j].Link) == -1
+		a := []byte(tui.MainWidget.Feeds[i].Title)
+		b := []byte(tui.MainWidget.Feeds[j].Title)
+		return bytes.Compare(a, b) == -1
 	})
 	sort.Slice(tui.MainWidget.Feeds, func(i, j int) bool {
 		return tui.MainWidget.Feeds[i].Merged && !tui.MainWidget.Feeds[j].Merged
@@ -227,7 +229,7 @@ func (tui *Tui) updateAllFeed() error {
 	tui.GetTodaysFeeds()
 	tui.GetAllItems()
 	tui.MainWidget.SaveFeeds()
-	tui.Notify("All feeds have updated.")
+	tui.Notify("All feeds are updated.")
 	tui.setFeeds(tui.MainWidget.Feeds)
 
 	return nil
@@ -295,7 +297,7 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 
 	for _, url := range newURLs {
 		f := &feed.Feed{
-			Title:       url,
+			Title:       "getting " + url + "...",
 			Color:       15,
 			Description: "update to get details",
 			Link:        "",
