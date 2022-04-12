@@ -81,10 +81,11 @@ func (tui *Tui) UpdateHelp(text string) {
 }
 
 func (tui *Tui) RefreshTui() {
-	if tui.MainWidget.Table.HasFocus() {
+	focus := tui.App.GetFocus()
+	if focus == tui.MainWidget.Table {
 		row, column := tui.MainWidget.Table.GetSelection()
 		tui.selectMainRow(row, column)
-	} else if tui.SubWidget.Table.HasFocus() {
+	} else if focus == tui.SubWidget.Table {
 		row, column := tui.SubWidget.Table.GetSelection()
 		tui.selectSubRow(row, column)
 	}
@@ -215,6 +216,7 @@ func (tui *Tui) updateAllFeed() error {
 	doneCount := 0
 
 	wg := sync.WaitGroup{}
+
 	for index := range tui.MainWidget.Feeds {
 		wg.Add(1)
 		go func(i int) {
@@ -294,21 +296,6 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 			newURLs = append(newURLs, feedLink)
 		}
 	}
-
-	//ch := make(chan string, count)
-	//go func() {
-	//	for _, url := range feedURLs {
-	//		ch <- url
-	//	}
-	//	close(ch)
-	//}()
-	//for i := 0; i < count; i++ {
-	//	for url := range ch {
-	//		if err := tui.AddFeedFromURL(url); err != nil {
-	//			panic(err)
-	//		}
-	//	}
-	//}
 
 	wg := sync.WaitGroup{}
 
@@ -582,10 +569,6 @@ func execCmd(attachStd bool, cmd string, args ...string) error {
 	return command.Run()
 }
 
-func (tui *Tui) Stop() {
-	tui.App.Stop()
-}
-
 func (tui *Tui) Run() error {
 
 	err := tui.MainWidget.LoadFeeds(getDataPath())
@@ -612,8 +595,17 @@ func (tui *Tui) Run() error {
 	tui.App.SetRoot(tui.Pages, true).SetFocus(tui.MainWidget.Table)
 	tui.RefreshTui()
 
+	tui.WaitGroup.Add(1)
+	go func() {
+		if err := tui.updateAllFeed(); err != nil {
+			panic(err)
+		}
+		tui.WaitGroup.Done()
+	}()
+
 	if err := tui.App.Run(); err != nil {
-		tui.Stop()
+		tui.WaitGroup.Wait()
+		tui.App.Stop()
 		return err
 	}
 
