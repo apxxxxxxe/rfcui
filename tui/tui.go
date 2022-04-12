@@ -34,6 +34,7 @@ type Tui struct {
 	Info        *tview.TextView
 	Help        *tview.TextView
 	InputWidget *InputBox
+	WaitGroup   *sync.WaitGroup
 }
 
 func (tui *Tui) AddFeedFromURL(url string) error {
@@ -89,13 +90,20 @@ func (tui *Tui) RefreshTui() {
 	}
 }
 
-func (tui *Tui) setItems(items []*feed.Item) {
+func (tui *Tui) setItems(paintColor bool) {
+	row, _ := tui.MainWidget.Table.GetSelection()
+	items := tui.MainWidget.Feeds[row].Items
+
 	tui.SubWidget.Items = items
-	itemTexts := []string{}
-	for _, item := range items {
-		itemTexts = append(itemTexts, item.Title)
+
+	table := tui.SubWidget.Table.Clear()
+	for i, item := range items {
+		table.SetCellSimple(i, 0, item.Title)
+		if paintColor {
+			table.GetCell(i, 0).SetTextColor(tcellColors[item.Color])
+		}
 	}
-	tui.LoadCells(tui.SubWidget.Table, itemTexts)
+
 	if tui.SubWidget.Table.GetRowCount() != 0 {
 		tui.SubWidget.Table.Select(0, 0).ScrollToBeginning()
 	}
@@ -190,7 +198,7 @@ func (tui *Tui) updateSelectedFeed() error {
 	}
 
 	tui.MainWidget.SaveFeeds()
-	tui.setItems(tui.MainWidget.Feeds[row].Items)
+	tui.setItems(tui.MainWidget.Feeds[row].Merged)
 	tui.GetTodaysFeeds()
 	tui.GetAllItems()
 	tui.Notify("Updated.")
@@ -229,7 +237,7 @@ func (tui *Tui) updateAllFeed() error {
 
 func (tui *Tui) selectMainRow(row, column int) {
 	feed := tui.MainWidget.Feeds[row]
-	tui.setItems(feed.Items)
+	tui.setItems(tui.MainWidget.Feeds[row].Merged)
 	if tui.App.GetFocus() == tui.MainWidget.Table {
 		tui.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
 		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
@@ -247,11 +255,13 @@ func (tui *Tui) selectSubRow(row, column int) {
 func (tui *Tui) setFeeds(feeds []*feed.Feed) {
 	tui.MainWidget.Feeds = feeds
 	tui.sortFeeds()
-	feedTitles := []string{}
-	for _, feed := range tui.MainWidget.Feeds {
-		feedTitles = append(feedTitles, feed.Title)
+	table := tui.MainWidget.Table.Clear()
+	for i, feed := range tui.MainWidget.Feeds {
+		table.SetCellSimple(i, 0, feed.Title)
+		if !feed.Merged {
+			table.GetCell(i, 0).SetTextColor(tcellColors[feed.Color])
+		}
 	}
-	tui.LoadCells(tui.MainWidget.Table, feedTitles)
 	row, _ := tui.MainWidget.Table.GetSelection()
 	max := tui.MainWidget.Table.GetRowCount() - 1
 	if max < row {
@@ -427,6 +437,7 @@ func NewTui() *Tui {
 		Info:        infoWidget,
 		Help:        helpWidget,
 		InputWidget: &InputBox{inputWidget, 0},
+		WaitGroup:   &sync.WaitGroup{},
 	}
 
 	tui.setAppFunctions()
@@ -586,8 +597,8 @@ func (tui *Tui) Run() error {
 		return err
 	}
 
-	tui.GetTodaysFeeds()
-	tui.GetAllItems()
+	//tui.GetTodaysFeeds()
+	//tui.GetAllItems()
 
 	err = tui.MainWidget.SaveFeeds()
 	if err != nil {
@@ -596,7 +607,7 @@ func (tui *Tui) Run() error {
 
 	if len(tui.MainWidget.Feeds) > 0 {
 		tui.setFeeds(tui.MainWidget.Feeds)
-		tui.setItems(tui.MainWidget.Feeds[0].Items)
+		tui.setItems(tui.MainWidget.Feeds[0].Merged)
 	}
 	tui.App.SetRoot(tui.Pages, true).SetFocus(tui.MainWidget.Table)
 	tui.RefreshTui()
