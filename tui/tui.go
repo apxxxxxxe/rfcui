@@ -166,17 +166,15 @@ func (tui *Tui) GetAllItems() {
 
 func (tui *Tui) sortFeeds() {
 	sort.Slice(tui.MainWidget.Feeds, func(i, j int) bool {
-		return strings.Compare(tui.MainWidget.Feeds[i].Title, tui.MainWidget.Feeds[j].Title) == -1
+		return strings.Compare(tui.MainWidget.Feeds[i].Link, tui.MainWidget.Feeds[j].Link) == -1
 	})
 	sort.Slice(tui.MainWidget.Feeds, func(i, j int) bool {
-		// Prioritize merged feeds
 		return tui.MainWidget.Feeds[i].Merged && !tui.MainWidget.Feeds[j].Merged
 	})
 }
 
 func (tui *Tui) updateFeed(i int) error {
 	if tui.MainWidget.Feeds[i].Merged {
-		//return errors.New("merged feed can't update")
 		return nil
 	}
 
@@ -209,9 +207,6 @@ func (tui *Tui) updateSelectedFeed() error {
 }
 
 func (tui *Tui) updateAllFeed() error {
-	tui.Notify("Updating...")
-	tui.App.ForceDraw()
-
 	length := len(tui.MainWidget.Feeds)
 	doneCount := 0
 
@@ -233,6 +228,7 @@ func (tui *Tui) updateAllFeed() error {
 	tui.GetAllItems()
 	tui.MainWidget.SaveFeeds()
 	tui.Notify("All feeds have updated.")
+	tui.setFeeds(tui.MainWidget.Feeds)
 
 	return nil
 }
@@ -311,22 +307,12 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 	}
 	tui.setFeeds(tui.MainWidget.Feeds)
 
-	//wg := sync.WaitGroup{}
-	//for _, url := range newURLs {
-	//	wg.Add(1)
-	//	go func(u string) {
-	//		_ = tui.AddFeedFromURL(u)
-	//		wg.Done()
-	//	}(url)
-	//}
-	//wg.Wait()
-
 	return nil
 }
 
 type MainWidget struct {
-	Table *tview.Table `json:"Table"`
-	Feeds []*feed.Feed `json:"Feeds"`
+	Table *tview.Table
+	Feeds []*feed.Feed
 }
 
 func (m *MainWidget) SaveFeeds() error {
@@ -600,13 +586,6 @@ func (tui *Tui) Run() error {
 		return err
 	}
 
-	if len(tui.MainWidget.Feeds) > 0 {
-		tui.setFeeds(tui.MainWidget.Feeds)
-		tui.setItems(tui.MainWidget.Feeds[0].Merged)
-	}
-	tui.App.SetRoot(tui.Pages, true).SetFocus(tui.MainWidget.Table)
-	tui.RefreshTui()
-
 	tui.WaitGroup.Add(1)
 	go func() {
 		if err := tui.updateAllFeed(); err != nil {
@@ -614,6 +593,13 @@ func (tui *Tui) Run() error {
 		}
 		tui.WaitGroup.Done()
 	}()
+
+	if len(tui.MainWidget.Feeds) > 0 {
+		tui.setFeeds(tui.MainWidget.Feeds)
+		tui.setItems(tui.MainWidget.Feeds[0].Merged)
+	}
+	tui.App.SetRoot(tui.Pages, true).SetFocus(tui.MainWidget.Table)
+	tui.RefreshTui()
 
 	if err := tui.App.Run(); err != nil {
 		tui.WaitGroup.Wait()
