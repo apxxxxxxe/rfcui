@@ -33,6 +33,7 @@ type Tui struct {
 	InputWidget    *InputBox
 	WaitGroup      *sync.WaitGroup
 	SelectingFeeds []*feed.Feed
+	DeleteConfirm  bool
 }
 
 func (tui *Tui) SelectFeed() {
@@ -212,7 +213,6 @@ func (tui *Tui) updateSelectedFeed() error {
 	tui.GetTodaysFeeds()
 	tui.Notify("Updated.")
 	tui.App.SetFocus(tui.MainWidget.Table)
-	tui.App.Draw()
 
 	return nil
 }
@@ -237,18 +237,27 @@ func (tui *Tui) updateAllFeed() error {
 	wg.Wait()
 
 	for _, g := range tui.MainWidget.Groups {
-		tui.AddFeedFromGroup(g)
+		isExist := false
+		for _, f := range tui.MainWidget.Feeds {
+			if f.Title == g.Title {
+				isExist = true
+			}
+		}
+		if !isExist {
+			tui.AddFeedFromGroup(g)
+		}
 	}
 
 	tui.GetTodaysFeeds()
 	tui.Notify("All feeds are up-to-date.")
 	tui.MainWidget.setFeeds()
-	tui.App.Draw()
 
 	return nil
 }
 
 func (tui *Tui) selectMainRow(row, column int) {
+	tui.Notify("")
+	tui.DeleteConfirm = false
 	feed := tui.MainWidget.Feeds[row]
 	tui.setItems(tui.MainWidget.Feeds[row].Merged)
 	if tui.App.GetFocus() == tui.MainWidget.Table {
@@ -258,6 +267,7 @@ func (tui *Tui) selectMainRow(row, column int) {
 }
 
 func (tui *Tui) selectSubRow(row, column int) {
+	tui.Notify("")
 	item := tui.SubWidget.Items[row]
 	if tui.App.GetFocus() == tui.SubWidget.Table {
 		tui.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
@@ -366,15 +376,17 @@ func NewTui() *Tui {
 		AddPage(inputField, inputFlex, true, false)
 
 	tui := &Tui{
-		App:         tview.NewApplication(),
-		Pages:       pages,
-		MainWidget:  &MainWidget{mainTable, []*feed.Group{}, []*feed.Feed{}},
-		SubWidget:   &SubWidget{subTable, []*feed.Item{}},
-		Description: descriptionWidget,
-		Info:        infoWidget,
-		Help:        helpWidget,
-		InputWidget: &InputBox{inputWidget, 0},
-		WaitGroup:   &sync.WaitGroup{},
+		App:            tview.NewApplication(),
+		Pages:          pages,
+		MainWidget:     &MainWidget{mainTable, []*feed.Group{}, []*feed.Feed{}},
+		SubWidget:      &SubWidget{subTable, []*feed.Item{}},
+		Description:    descriptionWidget,
+		Info:           infoWidget,
+		Help:           helpWidget,
+		InputWidget:    &InputBox{inputWidget, 0},
+		WaitGroup:      &sync.WaitGroup{},
+		SelectingFeeds: []*feed.Feed{},
+		DeleteConfirm:  false,
 	}
 
 	tui.setAppFunctions()
@@ -414,8 +426,15 @@ func (tui *Tui) setAppFunctions() {
 				}
 				return nil
 			case 'd':
-				tui.MainWidget.DeleteSelection()
-				tui.MainWidget.setFeeds()
+				if tui.DeleteConfirm {
+					tui.MainWidget.DeleteSelection()
+					tui.MainWidget.setFeeds()
+					tui.Notify("Deleted.")
+					tui.DeleteConfirm = false
+				} else {
+					tui.Notify("Press d again to delete the feed.")
+					tui.DeleteConfirm = true
+				}
 			}
 		}
 		return event
@@ -568,6 +587,7 @@ func (tui *Tui) Run() error {
 		if err := tui.updateAllFeed(); err != nil {
 			panic(err)
 		}
+		tui.App.QueueUpdateDraw(func() {})
 		tui.WaitGroup.Done()
 	}()
 

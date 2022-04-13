@@ -96,6 +96,11 @@ func (m *MainWidget) DeleteSelection() error {
 	if v.Merged {
 		dataPath = getDataPath()[1]
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.Title)))
+    for i, g := range m.Groups {
+      if v.Title == g.Title {
+        m.deleteGroup(i)
+      }
+    }
 	} else {
 		dataPath = getDataPath()[0]
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.FeedLink)))
@@ -111,6 +116,10 @@ func (m *MainWidget) deleteFeed(i int) {
 	m.Feeds = append(m.Feeds[:i], m.Feeds[i+1:]...)
 }
 
+func (m *MainWidget) deleteGroup(i int) {
+	m.Groups = append(m.Groups[:i], m.Groups[i+1:]...)
+}
+
 func (m *MainWidget) sortFeeds() {
 	sort.Slice(m.Feeds, func(i, j int) bool {
 		a := []byte(m.Feeds[i].Title)
@@ -123,7 +132,7 @@ func (m *MainWidget) sortFeeds() {
 }
 
 func (m *MainWidget) setFeeds() {
-  m.sortFeeds()
+	m.sortFeeds()
 	table := m.Table.Clear()
 	for i, feed := range m.Feeds {
 		table.SetCellSimple(i, 0, feed.Title)
