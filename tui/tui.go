@@ -531,6 +531,7 @@ func (tui *Tui) setAppFunctions() {
 				}
 				tui.AddGroup(&feed.Group{title, links})
 			}
+			tui.SelectingFeeds = []*feed.Feed{}
 			tui.InputWidget.Input.SetText("")
 			tui.InputWidget.Input.SetTitle("Input")
 			tui.Pages.HidePage(inputField)
