@@ -92,6 +92,7 @@ func (tui *Tui) AddFeedFromURL(url string) error {
 			return nil
 		}
 	}
+	tui.MainWidget.SaveFeed(f)
 	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, f)
 	tui.MainWidget.setFeeds()
 	return nil
@@ -210,7 +211,9 @@ func (tui *Tui) updateSelectedFeed() error {
 
 	tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row])
 	tui.setItems(tui.MainWidget.Feeds[row].Merged)
-	tui.GetTodaysFeeds()
+	if len(tui.MainWidget.Feeds) > 0 {
+		tui.GetTodaysFeeds()
+	}
 	tui.Notify("Updated.")
 	tui.App.SetFocus(tui.MainWidget.Table)
 
@@ -248,7 +251,9 @@ func (tui *Tui) updateAllFeed() error {
 		}
 	}
 
-	tui.GetTodaysFeeds()
+	if len(tui.MainWidget.Feeds) > 0 {
+		tui.GetTodaysFeeds()
+	}
 	tui.Notify("All feeds are up-to-date.")
 	tui.MainWidget.setFeeds()
 
@@ -256,26 +261,40 @@ func (tui *Tui) updateAllFeed() error {
 }
 
 func (tui *Tui) selectMainRow(row, column int) {
+	var feed *feed.Feed
 	tui.Notify("")
 	tui.DeleteConfirm = false
-	feed := tui.MainWidget.Feeds[row]
-	tui.setItems(tui.MainWidget.Feeds[row].Merged)
+	if len(tui.MainWidget.Feeds) > 0 {
+		feed = tui.MainWidget.Feeds[row]
+		tui.setItems(tui.MainWidget.Feeds[row].Merged)
+	}
 	if tui.App.GetFocus() == tui.MainWidget.Table {
-		tui.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
+		if len(tui.MainWidget.Feeds) > 0 {
+			tui.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
+		}
 		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
 }
 
 func (tui *Tui) selectSubRow(row, column int) {
+	var item *feed.Item
 	tui.Notify("")
-	item := tui.SubWidget.Items[row]
+	if len(tui.SubWidget.Items) > 0 {
+		item = tui.SubWidget.Items[row]
+	}
 	if tui.App.GetFocus() == tui.SubWidget.Table {
-		tui.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatDate(), "\n", item.Title, "\n", item.Link))
+		if len(tui.SubWidget.Items) > 0 {
+			tui.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatDate(), "\n", item.Title, "\n", item.Link))
+		}
 		tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 	}
 }
 
 func (tui *Tui) AddFeedsFromURL(path string) error {
+	if !myio.IsFile(path) {
+		return nil
+	}
+
 	_, feedURLs, err := myio.GetLines(path)
 	if err != nil {
 		return err
