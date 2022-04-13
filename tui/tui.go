@@ -70,13 +70,17 @@ func (tui *Tui) AddFeedFromGroup(group *feed.Group) {
 }
 
 func (tui *Tui) AddGroup(group *feed.Group) {
-	for _, g := range tui.MainWidget.Groups {
+	for i, g := range tui.MainWidget.Groups {
 		if g.Title == group.Title {
+			tui.MainWidget.Groups[i].FeedLinks = uniqSlice(append(tui.MainWidget.Groups[i].FeedLinks, group.FeedLinks...))
+			tui.Notify("Add some links to " + g.Title + ".")
+			tui.MainWidget.SaveGroup(group)
 			return
 		}
 	}
 	tui.MainWidget.Groups = append(tui.MainWidget.Groups, group)
-	tui.MainWidget.SaveGroups()
+	tui.Notify("Made a group named " + group.Title + ".")
+	tui.MainWidget.SaveGroup(group)
 }
 
 func (tui *Tui) AddFeedFromURL(url string) error {
@@ -522,14 +526,19 @@ func (tui *Tui) setAppFunctions() {
 				}
 			case 1: // merge feeds
 				title := tui.InputWidget.Input.GetText()
-				tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, feed.MergeFeeds(tui.SelectingFeeds, title))
-				tui.MainWidget.setFeeds()
-
 				links := []string{}
 				for _, f := range tui.SelectingFeeds {
 					links = append(links, f.FeedLink)
 				}
-				tui.AddGroup(&feed.Group{title, links})
+				tui.AddGroup(&feed.Group{Title: title, FeedLinks: links})
+				tui.WaitGroup.Add(1)
+				go func() {
+					if err := tui.updateAllFeed(); err != nil {
+						panic(err)
+					}
+					tui.App.QueueUpdateDraw(func() {})
+					tui.WaitGroup.Done()
+				}()
 			}
 			tui.SelectingFeeds = []*feed.Feed{}
 			tui.InputWidget.Input.SetText("")
@@ -564,6 +573,20 @@ func (tui *Tui) setAppFunctions() {
 		}
 		return event
 	})
+}
+
+func uniqSlice(list []string) []string {
+	m := make(map[string]struct{})
+
+	newList := make([]string, 0)
+
+	for _, element := range list {
+		if _, ok := m[element]; !ok {
+			m[element] = struct{}{}
+			newList = append(newList, element)
+		}
+	}
+	return newList
 }
 
 func execCmd(attachStd bool, cmd string, args ...string) error {

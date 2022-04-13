@@ -96,11 +96,11 @@ func (m *MainWidget) DeleteSelection() error {
 	if v.Merged {
 		dataPath = getDataPath()[1]
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.Title)))
-    for i, g := range m.Groups {
-      if v.Title == g.Title {
-        m.deleteGroup(i)
-      }
-    }
+		for i, g := range m.Groups {
+			if v.Title == g.Title {
+				m.deleteGroup(i)
+			}
+		}
 	} else {
 		dataPath = getDataPath()[0]
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.FeedLink)))
@@ -145,4 +145,26 @@ func (m *MainWidget) setFeeds() {
 	if max < row {
 		m.Table.Select(max, 0).ScrollToBeginning()
 	}
+}
+
+func (m *MainWidget) setGroups() {
+	for i, f := range m.Feeds {
+		if f.Merged {
+			m.deleteFeed(i)
+		}
+	}
+
+	results := []*feed.Feed{}
+	for _, g := range m.Groups {
+		feeds := []*feed.Feed{}
+		for _, link := range g.FeedLinks {
+			for _, f := range m.Feeds {
+				if link == f.FeedLink {
+					feeds = append(feeds, f)
+				}
+			}
+		}
+		results = append(results, feed.MergeFeeds(feeds, g.Title))
+	}
+	m.Feeds = append(m.Feeds, results...)
 }
