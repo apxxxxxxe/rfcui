@@ -14,9 +14,14 @@ type Item struct {
 	Link        string
 }
 
-func (a *Item) FormatTime() string {
+func (a *Item) FormatDate() string {
 	const timeFormat = "2006/01/02 15:04:05"
 	return a.PubDate.Format(timeFormat)
+}
+
+func (a *Item) FormatTime() string {
+  const timeFormat = "15:04"
+  return a.PubDate.Format(timeFormat)
 }
 
 func formatItems(items []*Item) []*Item {

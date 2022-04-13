@@ -270,7 +270,7 @@ func (tui *Tui) selectSubRow(row, column int) {
 	tui.Notify("")
 	item := tui.SubWidget.Items[row]
 	if tui.App.GetFocus() == tui.SubWidget.Table {
-		tui.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
+		tui.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatDate(), "\n", item.Title, "\n", item.Link))
 		tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 	}
 }
