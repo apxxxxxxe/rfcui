@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,15 +25,59 @@ const (
 )
 
 type Tui struct {
-	App         *tview.Application
-	Pages       *tview.Pages
-	MainWidget  *MainWidget
-	SubWidget   *SubWidget
-	Description *tview.TextView
-	Info        *tview.TextView
-	Help        *tview.TextView
-	InputWidget *InputBox
-	WaitGroup   *sync.WaitGroup
+	App            *tview.Application
+	Pages          *tview.Pages
+	MainWidget     *MainWidget
+	SubWidget      *SubWidget
+	Description    *tview.TextView
+	Info           *tview.TextView
+	Help           *tview.TextView
+	InputWidget    *InputBox
+	WaitGroup      *sync.WaitGroup
+	SelectingFeeds []*feed.Feed
+}
+
+func (tui *Tui) SelectFeed() {
+	const defaultColor = tcell.ColorBlack
+	const selectedColor = tcell.ColorWhite
+
+	row, column := tui.MainWidget.Table.GetSelection()
+	if tui.MainWidget.Table.GetCell(row, column).BackgroundColor == defaultColor {
+		tui.MainWidget.Table.GetCell(row, column).SetBackgroundColor(selectedColor)
+		tui.SelectingFeeds = append(tui.SelectingFeeds, tui.MainWidget.Feeds[row])
+	} else {
+		tui.MainWidget.Table.GetCell(tui.MainWidget.Table.GetSelection()).SetBackgroundColor(defaultColor)
+		targetFeed := tui.MainWidget.Feeds[row]
+		for i, f := range tui.SelectingFeeds {
+			if f == targetFeed {
+				tui.SelectingFeeds = append(tui.SelectingFeeds[:i], tui.SelectingFeeds[i+1:]...)
+				break
+			}
+		}
+	}
+}
+
+func (tui *Tui) AddFeedFromGroup(group *feed.Group) {
+	targetFeeds := []*feed.Feed{}
+	for _, f := range tui.MainWidget.Feeds {
+		for _, link := range group.FeedLinks {
+			if link == f.FeedLink {
+				targetFeeds = append(targetFeeds, f)
+			}
+		}
+	}
+	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, feed.MergeFeeds(targetFeeds, group.Title))
+	tui.setFeeds(tui.MainWidget.Feeds)
+}
+
+func (tui *Tui) AddGroup(group *feed.Group) {
+	for _, g := range tui.MainWidget.Groups {
+		if g.Title == group.Title {
+			return
+		}
+	}
+	tui.MainWidget.Groups = append(tui.MainWidget.Groups, group)
+	tui.MainWidget.SaveGroups()
 }
 
 func (tui *Tui) AddFeedFromURL(url string) error {
@@ -62,10 +105,12 @@ func (tui *Tui) LoadCells(table *tview.Table, texts []string) {
 	}
 }
 
-func getDataPath() string {
-	const datapath = "feedcache"
+func getDataPath() []string {
+	const dataRoot = "cache"
+	const feedData = "feedData"
+	const groupData = "groupData"
 	pwd, _ := os.Getwd()
-	return filepath.Join(pwd, datapath)
+	return []string{filepath.Join(pwd, dataRoot, feedData), filepath.Join(pwd, dataRoot, groupData)}
 }
 
 func (tui *Tui) showDescription(text string) {
@@ -108,11 +153,6 @@ func (tui *Tui) setItems(paintColor bool) {
 	if tui.SubWidget.Table.GetRowCount() != 0 {
 		tui.SubWidget.Table.Select(0, 0).ScrollToBeginning()
 	}
-}
-
-func (tui *Tui) deleteFeed(i int) {
-	a := tui.MainWidget.Feeds
-	a = append(a[:i], a[i+1:]...)
 }
 
 func (tui *Tui) GetTodaysFeeds() {
@@ -198,7 +238,7 @@ func (tui *Tui) updateSelectedFeed() error {
 		return err
 	}
 
-	tui.MainWidget.SaveFeeds()
+	tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row])
 	tui.setItems(tui.MainWidget.Feeds[row].Merged)
 	tui.GetTodaysFeeds()
 	tui.GetAllItems()
@@ -218,6 +258,7 @@ func (tui *Tui) updateAllFeed() error {
 		wg.Add(1)
 		go func(i int) {
 			tui.updateFeed(i)
+			tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[i])
 			doneCount++
 			tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds..."))
 			tui.App.ForceDraw()
@@ -226,9 +267,12 @@ func (tui *Tui) updateAllFeed() error {
 	}
 	wg.Wait()
 
+	for _, g := range tui.MainWidget.Groups {
+		tui.AddFeedFromGroup(g)
+	}
+
 	tui.GetTodaysFeeds()
 	tui.GetAllItems()
-	tui.MainWidget.SaveFeeds()
 	tui.Notify("All feeds are updated.")
 	tui.setFeeds(tui.MainWidget.Feeds)
 
@@ -277,7 +321,7 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 	}
 
 	fileNames := []string{}
-	for _, fp := range myio.DirWalk(getDataPath()) {
+	for _, fp := range myio.DirWalk(getDataPath()[0]) {
 		fileNames = append(fileNames, filepath.Base(fp))
 	}
 
@@ -310,51 +354,6 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 	tui.setFeeds(tui.MainWidget.Feeds)
 
 	return nil
-}
-
-type MainWidget struct {
-	Table *tview.Table
-	Feeds []*feed.Feed
-}
-
-func (m *MainWidget) SaveFeeds() error {
-	for _, f := range m.Feeds {
-		if f.Merged {
-			continue
-		}
-
-		b, err := feed.Encode(f)
-		if err != nil {
-			return err
-		}
-		hash := fmt.Sprintf("%x", md5.Sum([]byte(f.FeedLink)))
-		myio.SaveBytes(b, filepath.Join(getDataPath(), hash))
-	}
-	return nil
-}
-
-func (m *MainWidget) LoadFeeds(path string) error {
-	if !myio.IsDir(getDataPath()) {
-		os.MkdirAll(getDataPath(), 0755)
-	}
-	for _, file := range myio.DirWalk(path) {
-		b, err := ioutil.ReadFile(file)
-		if err != nil {
-			return err
-		}
-		m.Feeds = append(m.Feeds, feed.Decode(b))
-	}
-	return nil
-}
-
-type SubWidget struct {
-	Table *tview.Table `json:"SubTable"`
-	Items []*feed.Item `json:"Items"`
-}
-
-type InputBox struct {
-	Input *tview.InputField
-	Mode  int
 }
 
 func NewTui() *Tui {
@@ -418,7 +417,7 @@ func NewTui() *Tui {
 	tui := &Tui{
 		App:         tview.NewApplication(),
 		Pages:       pages,
-		MainWidget:  &MainWidget{mainTable, []*feed.Feed{}},
+		MainWidget:  &MainWidget{mainTable, []*feed.Group{}, []*feed.Feed{}},
 		SubWidget:   &SubWidget{subTable, []*feed.Item{}},
 		Description: descriptionWidget,
 		Info:        infoWidget,
@@ -451,6 +450,17 @@ func (tui *Tui) setAppFunctions() {
 				tui.App.SetFocus(tui.SubWidget.Table)
 				tui.RefreshTui()
 				return nil
+			case 'v':
+				tui.SelectFeed()
+			case 'm':
+				tui.InputWidget.Input.SetTitle("Merge Feeds")
+				tui.InputWidget.Mode = 1
+				tui.Pages.ShowPage(inputField)
+				tui.App.SetFocus(tui.InputWidget.Input)
+				return nil
+			case 'd':
+				tui.MainWidget.DeleteSelection()
+				tui.setFeeds(tui.MainWidget.Feeds)
 			}
 		}
 		return event
@@ -517,6 +527,16 @@ func (tui *Tui) setAppFunctions() {
 				if err := tui.AddFeedFromURL(tui.InputWidget.Input.GetText()); err != nil {
 					tui.Notify(err.Error())
 				}
+			case 1: // merge feeds
+				title := tui.InputWidget.Input.GetText()
+				tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, feed.MergeFeeds(tui.SelectingFeeds, title))
+				tui.setFeeds(tui.MainWidget.Feeds)
+
+				links := []string{}
+				for _, f := range tui.SelectingFeeds {
+					links = append(links, f.FeedLink)
+				}
+				tui.AddGroup(&feed.Group{title, links})
 			}
 			tui.InputWidget.Input.SetText("")
 			tui.InputWidget.Input.SetTitle("Input")
@@ -570,21 +590,21 @@ func execCmd(attachStd bool, cmd string, args ...string) error {
 }
 
 func (tui *Tui) Run() error {
+	for _, path := range getDataPath() {
+		if !myio.IsDir(path) {
+			os.MkdirAll(path, 0755)
+		}
+	}
 
-	err := tui.MainWidget.LoadFeeds(getDataPath())
-	if err != nil {
+	if err := tui.MainWidget.LoadFeeds(getDataPath()[0]); err != nil {
+		return err
+	}
+
+	if err := tui.MainWidget.LoadGroups(getDataPath()[1]); err != nil {
 		return err
 	}
 
 	if err := tui.AddFeedsFromURL("list.txt"); err != nil {
-		return err
-	}
-
-	//tui.GetTodaysFeeds()
-	//tui.GetAllItems()
-
-	err = tui.MainWidget.SaveFeeds()
-	if err != nil {
 		return err
 	}
 
@@ -600,10 +620,9 @@ func (tui *Tui) Run() error {
 		tui.setFeeds(tui.MainWidget.Feeds)
 		tui.setItems(tui.MainWidget.Feeds[0].Merged)
 	}
-	tui.App.SetRoot(tui.Pages, true).SetFocus(tui.MainWidget.Table)
 	tui.RefreshTui()
 
-	if err := tui.App.Run(); err != nil {
+	if err := tui.App.SetRoot(tui.Pages, true).SetFocus(tui.MainWidget.Table).Run(); err != nil {
 		tui.WaitGroup.Wait()
 		tui.App.Stop()
 		return err
