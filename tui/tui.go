@@ -564,6 +564,9 @@ func execCmd(attachStd bool, cmd string, args ...string) error {
 }
 
 func (tui *Tui) Run() error {
+
+	fmt.Print("loading...\r")
+
 	for _, path := range getDataPath() {
 		if !myio.IsDir(path) {
 			os.MkdirAll(path, 0755)
@@ -590,12 +593,6 @@ func (tui *Tui) Run() error {
 		tui.App.QueueUpdateDraw(func() {})
 		tui.WaitGroup.Done()
 	}()
-
-	if len(tui.MainWidget.Feeds) > 0 {
-		tui.MainWidget.setFeeds()
-		tui.setItems(tui.MainWidget.Feeds[0].Merged)
-	}
-	tui.RefreshTui()
 
 	if err := tui.App.SetRoot(tui.Pages, true).SetFocus(tui.MainWidget.Table).Run(); err != nil {
 		tui.WaitGroup.Wait()
