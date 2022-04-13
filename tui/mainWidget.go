@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/apxxxxxxe/rfcui/feed"
 	myio "github.com/apxxxxxxe/rfcui/io"
@@ -107,4 +109,31 @@ func (m *MainWidget) DeleteSelection() error {
 
 func (m *MainWidget) deleteFeed(i int) {
 	m.Feeds = append(m.Feeds[:i], m.Feeds[i+1:]...)
+}
+
+func (m *MainWidget) sortFeeds() {
+	sort.Slice(m.Feeds, func(i, j int) bool {
+		a := []byte(m.Feeds[i].Title)
+		b := []byte(m.Feeds[j].Title)
+		return bytes.Compare(a, b) == -1
+	})
+	sort.Slice(m.Feeds, func(i, j int) bool {
+		return m.Feeds[i].Merged && !m.Feeds[j].Merged
+	})
+}
+
+func (m *MainWidget) setFeeds() {
+  m.sortFeeds()
+	table := m.Table.Clear()
+	for i, feed := range m.Feeds {
+		table.SetCellSimple(i, 0, feed.Title)
+		if !feed.Merged {
+			table.GetCell(i, 0).SetTextColor(tcellColors[feed.Color])
+		}
+	}
+	row, _ := m.Table.GetSelection()
+	max := m.Table.GetRowCount() - 1
+	if max < row {
+		m.Table.Select(max, 0).ScrollToBeginning()
+	}
 }

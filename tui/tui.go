@@ -1,13 +1,11 @@
 package tui
 
 import (
-	"bytes"
 	"crypto/md5"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"sync"
 	"time"
 
@@ -67,7 +65,7 @@ func (tui *Tui) AddFeedFromGroup(group *feed.Group) {
 		}
 	}
 	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, feed.MergeFeeds(targetFeeds, group.Title))
-	tui.setFeeds(tui.MainWidget.Feeds)
+	tui.MainWidget.setFeeds()
 }
 
 func (tui *Tui) AddGroup(group *feed.Group) {
@@ -89,11 +87,12 @@ func (tui *Tui) AddFeedFromURL(url string) error {
 	for i, feed := range tui.MainWidget.Feeds {
 		if feed.FeedLink == url {
 			tui.MainWidget.Feeds[i] = f
-			tui.setFeeds(tui.MainWidget.Feeds)
+			tui.MainWidget.setFeeds()
 			return nil
 		}
 	}
-	tui.setFeeds(append(tui.MainWidget.Feeds, f))
+	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, f)
+	tui.MainWidget.setFeeds()
 	return nil
 
 }
@@ -182,37 +181,7 @@ func (tui *Tui) GetTodaysFeeds() {
 	if !isExist {
 		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, targetfeed)
 	}
-	tui.setFeeds(tui.MainWidget.Feeds)
-}
-
-func (tui *Tui) GetAllItems() {
-	const feedname = "All Items"
-
-	targetfeed := feed.MergeFeeds(tui.MainWidget.Feeds, feedname)
-
-	isExist := false
-	for i, f := range tui.MainWidget.Feeds {
-		if f.Title == feedname {
-			tui.MainWidget.Feeds[i] = targetfeed
-			isExist = true
-			break
-		}
-	}
-	if !isExist {
-		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, targetfeed)
-	}
-	tui.setFeeds(tui.MainWidget.Feeds)
-}
-
-func (tui *Tui) sortFeeds() {
-	sort.Slice(tui.MainWidget.Feeds, func(i, j int) bool {
-		a := []byte(tui.MainWidget.Feeds[i].Title)
-		b := []byte(tui.MainWidget.Feeds[j].Title)
-		return bytes.Compare(a, b) == -1
-	})
-	sort.Slice(tui.MainWidget.Feeds, func(i, j int) bool {
-		return tui.MainWidget.Feeds[i].Merged && !tui.MainWidget.Feeds[j].Merged
-	})
+	tui.MainWidget.setFeeds()
 }
 
 func (tui *Tui) updateFeed(i int) error {
@@ -241,9 +210,9 @@ func (tui *Tui) updateSelectedFeed() error {
 	tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row])
 	tui.setItems(tui.MainWidget.Feeds[row].Merged)
 	tui.GetTodaysFeeds()
-	tui.GetAllItems()
 	tui.Notify("Updated.")
 	tui.App.SetFocus(tui.MainWidget.Table)
+	tui.App.Draw()
 
 	return nil
 }
@@ -272,9 +241,9 @@ func (tui *Tui) updateAllFeed() error {
 	}
 
 	tui.GetTodaysFeeds()
-	tui.GetAllItems()
-	tui.Notify("All feeds are updated.")
-	tui.setFeeds(tui.MainWidget.Feeds)
+	tui.Notify("All feeds are up-to-date.")
+	tui.MainWidget.setFeeds()
+	tui.App.Draw()
 
 	return nil
 }
@@ -294,24 +263,6 @@ func (tui *Tui) selectSubRow(row, column int) {
 		tui.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatTime(), "\n", item.Title, "\n", item.Link))
 		tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 	}
-}
-
-func (tui *Tui) setFeeds(feeds []*feed.Feed) {
-	tui.MainWidget.Feeds = feeds
-	tui.sortFeeds()
-	table := tui.MainWidget.Table.Clear()
-	for i, feed := range tui.MainWidget.Feeds {
-		table.SetCellSimple(i, 0, feed.Title)
-		if !feed.Merged {
-			table.GetCell(i, 0).SetTextColor(tcellColors[feed.Color])
-		}
-	}
-	row, _ := tui.MainWidget.Table.GetSelection()
-	max := tui.MainWidget.Table.GetRowCount() - 1
-	if max < row {
-		tui.MainWidget.Table.Select(max, 0).ScrollToBeginning()
-	}
-	tui.App.ForceDraw()
 }
 
 func (tui *Tui) AddFeedsFromURL(path string) error {
@@ -351,7 +302,7 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 		}
 		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, f)
 	}
-	tui.setFeeds(tui.MainWidget.Feeds)
+	tui.MainWidget.setFeeds()
 
 	return nil
 }
@@ -453,14 +404,18 @@ func (tui *Tui) setAppFunctions() {
 			case 'v':
 				tui.SelectFeed()
 			case 'm':
-				tui.InputWidget.Input.SetTitle("Merge Feeds")
-				tui.InputWidget.Mode = 1
-				tui.Pages.ShowPage(inputField)
-				tui.App.SetFocus(tui.InputWidget.Input)
+				if len(tui.SelectingFeeds) > 0 {
+					tui.InputWidget.Input.SetTitle("Make a Group")
+					tui.InputWidget.Mode = 1
+					tui.Pages.ShowPage(inputField)
+					tui.App.SetFocus(tui.InputWidget.Input)
+				} else {
+					tui.Notify("Select feeds with the s key to make a group.")
+				}
 				return nil
 			case 'd':
 				tui.MainWidget.DeleteSelection()
-				tui.setFeeds(tui.MainWidget.Feeds)
+				tui.MainWidget.setFeeds()
 			}
 		}
 		return event
@@ -530,7 +485,7 @@ func (tui *Tui) setAppFunctions() {
 			case 1: // merge feeds
 				title := tui.InputWidget.Input.GetText()
 				tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, feed.MergeFeeds(tui.SelectingFeeds, title))
-				tui.setFeeds(tui.MainWidget.Feeds)
+				tui.MainWidget.setFeeds()
 
 				links := []string{}
 				for _, f := range tui.SelectingFeeds {
@@ -617,7 +572,7 @@ func (tui *Tui) Run() error {
 	}()
 
 	if len(tui.MainWidget.Feeds) > 0 {
-		tui.setFeeds(tui.MainWidget.Feeds)
+		tui.MainWidget.setFeeds()
 		tui.setItems(tui.MainWidget.Feeds[0].Merged)
 	}
 	tui.RefreshTui()
