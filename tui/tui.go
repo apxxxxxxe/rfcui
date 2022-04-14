@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apxxxxxxe/rfcui/feed"
+	fd "github.com/apxxxxxxe/rfcui/feed"
 	myio "github.com/apxxxxxxe/rfcui/io"
 
 	"github.com/gdamore/tcell/v2"
@@ -32,7 +32,7 @@ type Tui struct {
 	Help           *tview.TextView
 	InputWidget    *InputBox
 	WaitGroup      *sync.WaitGroup
-	SelectingFeeds []*feed.Feed
+	SelectingFeeds []*fd.Feed
 	DeleteConfirm  bool
 }
 
@@ -56,8 +56,8 @@ func (tui *Tui) SelectFeed() {
 	}
 }
 
-func (tui *Tui) AddFeedFromGroup(group *feed.Group) {
-	targetFeeds := []*feed.Feed{}
+func (tui *Tui) AddFeedFromGroup(group *fd.Group) {
+	targetFeeds := []*fd.Feed{}
 	for _, f := range tui.MainWidget.Feeds {
 		for _, link := range group.FeedLinks {
 			if link == f.FeedLink {
@@ -65,11 +65,11 @@ func (tui *Tui) AddFeedFromGroup(group *feed.Group) {
 			}
 		}
 	}
-	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, feed.MergeFeeds(targetFeeds, group.Title))
+	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, fd.MergeFeeds(targetFeeds, group.Title))
 	tui.MainWidget.setFeeds()
 }
 
-func (tui *Tui) AddGroup(group *feed.Group) {
+func (tui *Tui) AddGroup(group *fd.Group) {
 	for i, g := range tui.MainWidget.Groups {
 		if g.Title == group.Title {
 			tui.MainWidget.Groups[i].FeedLinks = uniqSlice(append(tui.MainWidget.Groups[i].FeedLinks, group.FeedLinks...))
@@ -84,7 +84,7 @@ func (tui *Tui) AddGroup(group *feed.Group) {
 }
 
 func (tui *Tui) AddFeedFromURL(url string) error {
-	f, err := feed.GetFeedFromURL(url, "")
+	f, err := fd.GetFeedFromURL(url, "")
 	if err != nil {
 		return err
 	}
@@ -163,12 +163,12 @@ func (tui *Tui) setItems(paintColor bool) {
 func (tui *Tui) GetTodaysFeeds() {
 	const feedname = "Today's Items"
 
-	targetfeed := feed.MergeFeeds(tui.MainWidget.Feeds, feedname)
+	targetfeed := fd.MergeFeeds(tui.MainWidget.Feeds, feedname)
 
 	// 現在時刻より未来のフィードを除外
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	result := make([]*feed.Item, 0)
+	result := make([]*fd.Item, 0)
 	for _, item := range targetfeed.Items {
 		if today.Before(item.PubDate) {
 			result = append(result, item)
@@ -196,7 +196,7 @@ func (tui *Tui) updateFeed(i int) error {
 	}
 
 	var err error
-	tui.MainWidget.Feeds[i], err = feed.GetFeedFromURL(tui.MainWidget.Feeds[i].FeedLink, "")
+	tui.MainWidget.Feeds[i], err = fd.GetFeedFromURL(tui.MainWidget.Feeds[i].FeedLink, "")
 	if err != nil {
 		return err
 	}
@@ -265,7 +265,7 @@ func (tui *Tui) updateAllFeed() error {
 }
 
 func (tui *Tui) selectMainRow(row, column int) {
-	var feed *feed.Feed
+	var feed *fd.Feed
 	tui.Notify("")
 	tui.DeleteConfirm = false
 	if len(tui.MainWidget.Feeds) > 0 {
@@ -281,7 +281,7 @@ func (tui *Tui) selectMainRow(row, column int) {
 }
 
 func (tui *Tui) selectSubRow(row, column int) {
-	var item *feed.Item
+	var item *fd.Item
 	tui.Notify("")
 	if len(tui.SubWidget.Items) > 0 {
 		item = tui.SubWidget.Items[row]
@@ -324,13 +324,13 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 	}
 
 	for _, url := range newURLs {
-		f := &feed.Feed{
+		f := &fd.Feed{
 			Title:       "getting " + url + "...",
 			Color:       15,
 			Description: "update to get details",
 			Link:        "",
 			FeedLink:    url,
-			Items:       []*feed.Item{},
+			Items:       []*fd.Item{},
 			Merged:      false,
 		}
 		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, f)
@@ -401,14 +401,14 @@ func NewTui() *Tui {
 	tui := &Tui{
 		App:            tview.NewApplication(),
 		Pages:          pages,
-		MainWidget:     &MainWidget{mainTable, []*feed.Group{}, []*feed.Feed{}},
-		SubWidget:      &SubWidget{subTable, []*feed.Item{}},
+		MainWidget:     &MainWidget{mainTable, []*fd.Group{}, []*fd.Feed{}},
+		SubWidget:      &SubWidget{subTable, []*fd.Item{}},
 		Description:    descriptionWidget,
 		Info:           infoWidget,
 		Help:           helpWidget,
 		InputWidget:    &InputBox{inputWidget, 0},
 		WaitGroup:      &sync.WaitGroup{},
-		SelectingFeeds: []*feed.Feed{},
+		SelectingFeeds: []*fd.Feed{},
 		DeleteConfirm:  false,
 	}
 
@@ -530,7 +530,7 @@ func (tui *Tui) setAppFunctions() {
 				for _, f := range tui.SelectingFeeds {
 					links = append(links, f.FeedLink)
 				}
-				tui.AddGroup(&feed.Group{Title: title, FeedLinks: links})
+				tui.AddGroup(&fd.Group{Title: title, FeedLinks: links})
 				tui.WaitGroup.Add(1)
 				go func() {
 					if err := tui.updateAllFeed(); err != nil {
@@ -540,7 +540,7 @@ func (tui *Tui) setAppFunctions() {
 					tui.WaitGroup.Done()
 				}()
 			}
-			tui.SelectingFeeds = []*feed.Feed{}
+			tui.SelectingFeeds = []*fd.Feed{}
 			tui.InputWidget.Input.SetText("")
 			tui.InputWidget.Input.SetTitle("Input")
 			tui.Pages.HidePage(inputField)

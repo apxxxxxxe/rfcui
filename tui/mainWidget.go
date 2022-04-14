@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/apxxxxxxe/rfcui/feed"
+	fd "github.com/apxxxxxxe/rfcui/feed"
 	myio "github.com/apxxxxxxe/rfcui/io"
 
 	"github.com/rivo/tview"
@@ -17,16 +17,16 @@ import (
 
 type MainWidget struct {
 	Table  *tview.Table
-	Groups []*feed.Group
-	Feeds  []*feed.Feed
+	Groups []*fd.Group
+	Feeds  []*fd.Feed
 }
 
-func (m *MainWidget) SaveFeed(f *feed.Feed) error {
+func (m *MainWidget) SaveFeed(f *fd.Feed) error {
 	if f.Merged {
 		return nil
 	}
 
-	b, err := feed.EncodeFeed(f)
+	b, err := fd.EncodeFeed(f)
 	if err != nil {
 		return err
 	}
@@ -51,13 +51,13 @@ func (m *MainWidget) LoadFeeds(path string) error {
 		if err != nil {
 			return err
 		}
-		m.Feeds = append(m.Feeds, feed.DecodeFeed(b))
+		m.Feeds = append(m.Feeds, fd.DecodeFeed(b))
 	}
 	return nil
 }
 
-func (m *MainWidget) SaveGroup(g *feed.Group) error {
-	b, err := feed.EncodeGroup(g)
+func (m *MainWidget) SaveGroup(g *fd.Group) error {
+	b, err := fd.EncodeGroup(g)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (m *MainWidget) LoadGroups(path string) error {
 		if err != nil {
 			return err
 		}
-		m.Groups = append(m.Groups, feed.DecodeGroup(b))
+		m.Groups = append(m.Groups, fd.DecodeGroup(b))
 	}
 	return nil
 }
@@ -154,9 +154,9 @@ func (m *MainWidget) setGroups() {
 		}
 	}
 
-	results := []*feed.Feed{}
+	results := []*fd.Feed{}
 	for _, g := range m.Groups {
-		feeds := []*feed.Feed{}
+		feeds := []*fd.Feed{}
 		for _, link := range g.FeedLinks {
 			for _, f := range m.Feeds {
 				if link == f.FeedLink {
@@ -164,7 +164,7 @@ func (m *MainWidget) setGroups() {
 				}
 			}
 		}
-		results = append(results, feed.MergeFeeds(feeds, g.Title))
+		results = append(results, fd.MergeFeeds(feeds, g.Title))
 	}
 	m.Feeds = append(m.Feeds, results...)
 }
