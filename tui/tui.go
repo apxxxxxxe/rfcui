@@ -269,6 +269,8 @@ func (tui *Tui) updateAllFeed() error {
 		}(index)
 	}
 
+	wg.Wait()
+
 	for _, g := range tui.MainWidget.Groups {
 		isExist := false
 		for _, f := range tui.MainWidget.Feeds {
