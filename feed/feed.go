@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mmcdole/gofeed"
+	"github.com/pkg/errors"
 )
 
 type Feed struct {
@@ -22,7 +23,7 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 
 	parsedFeed, err := parser.ParseURL(url)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	color := getComfortableColorIndex()
 
