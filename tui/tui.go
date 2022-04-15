@@ -92,6 +92,7 @@ func (tui *Tui) AddGroup(group *fd.Group) error {
 
 func (tui *Tui) updateFeed(index int) error {
 	targetFeed := tui.MainWidget.Feeds[index]
+	color := targetFeed.Color
 	url := targetFeed.FeedLink
 	feed, err := fd.GetFeedFromURL(url, "")
 
@@ -99,12 +100,14 @@ func (tui *Tui) updateFeed(index int) error {
 		feed = getInvalidFeed(url, err)
 	}
 
-	for _, item := range feed.Items {
-		item.Color = targetFeed.Color
+	if color > 0 && color < len(tcellColors) {
+		for _, item := range feed.Items {
+			item.Color = targetFeed.Color
+		}
+		feed.Color = color
 	}
 
-	targetFeed.Items = feed.Items
-
+	tui.MainWidget.Feeds[index] = feed
 	return err
 }
 
@@ -183,7 +186,7 @@ func (tui *Tui) setItems(paintColor bool) {
 	table := tui.SubWidget.Table.Clear()
 	for i, item := range items {
 		table.SetCellSimple(i, 0, item.Title)
-		if paintColor {
+		if paintColor && item.Color > 0 && item.Color < len(tcellColors) {
 			table.GetCell(i, 0).SetTextColor(tcellColors[item.Color])
 		}
 	}
@@ -371,7 +374,7 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 	for _, url := range newURLs {
 		f := &fd.Feed{
 			Title:       "getting " + url + "...",
-			Color:       15,
+			Color:       -1,
 			Description: "update to get details",
 			Link:        "",
 			FeedLink:    url,

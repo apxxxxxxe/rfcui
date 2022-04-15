@@ -144,7 +144,11 @@ func (m *MainWidget) setFeeds() {
 	for i, feed := range m.Feeds {
 		table.SetCellSimple(i, 0, feed.Title)
 		if !feed.Merged {
-			table.GetCell(i, 0).SetTextColor(tcellColors[feed.Color])
+			if feed.Color < 0 || feed.Color > len(tcellColors) {
+				table.GetCell(i, 0).SetTextColor(tcellColors[15])
+			} else {
+				table.GetCell(i, 0).SetTextColor(tcellColors[feed.Color])
+			}
 		}
 	}
 	row, _ := m.Table.GetSelection()
