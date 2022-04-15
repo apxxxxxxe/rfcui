@@ -60,7 +60,7 @@ func MergeFeeds(feeds []*Feed, title string) *Feed {
 
 	return &Feed{
 		Title:       title,
-		Color:       0,
+		Color:       15,
 		Description: "",
 		Link:        "",
 		FeedLink:    "",
@@ -87,5 +87,5 @@ func parseTime(clock string) time.Time {
 }
 
 func getComfortableColorIndex() int {
-	return validColorCode[rand.Intn(len(validColorCode))]
+	return ValidColorCode[rand.Intn(len(ValidColorCode))]
 }

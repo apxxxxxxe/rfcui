@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -89,6 +90,17 @@ func (tui *Tui) AddGroup(group *fd.Group) error {
 	return nil
 }
 
+func (tui *Tui) updateFeed(index int) error {
+	url := tui.MainWidget.Feeds[index].FeedLink
+	feed, err := fd.GetFeedFromURL(url, "")
+	if err != nil {
+		feed = getInvalidFeed(url, err)
+	}
+	tui.MainWidget.Feeds[index].Items = feed.Items
+
+	return err
+}
+
 func (tui *Tui) AddFeedFromURL(url string) error {
 	f, err := fd.GetFeedFromURL(url, "")
 	if err != nil {
@@ -132,7 +144,12 @@ func (tui *Tui) showDescription(text string) {
 }
 
 func (tui *Tui) Notify(text string) {
-	tui.Info.SetText(text)
+	tui.Info.SetText(text).SetTextColor(tcell.ColorReset)
+}
+
+func (tui *Tui) NotifyError(text string) {
+	text = fmt.Sprint("error:\n", text)
+	tui.Info.SetText(text).SetTextColor(tcell.ColorRed)
 }
 
 func (tui *Tui) UpdateHelp(text string) {
@@ -199,26 +216,16 @@ func (tui *Tui) GetTodaysFeeds() {
 	tui.MainWidget.setFeeds()
 }
 
-func (tui *Tui) updateFeed(i int) error {
-	if tui.MainWidget.Feeds[i].Merged {
-		return nil
+func getInvalidFeed(url string, err error) *fd.Feed {
+	return &fd.Feed{
+		Title:       "failed to retrieve: " + url,
+		Color:       1, // Red
+		Description: fmt.Sprint("Failed to retrieve feed:\n", err),
+		Link:        "",
+		FeedLink:    url,
+		Items:       []*fd.Item{},
+		Merged:      false,
 	}
-
-	var err error
-	tui.MainWidget.Feeds[i], err = fd.GetFeedFromURL(tui.MainWidget.Feeds[i].FeedLink, "")
-	if err != nil {
-		tui.MainWidget.Feeds[i] = &fd.Feed{
-			Title:       "failed to retrieve: " + tui.MainWidget.Feeds[i].FeedLink,
-			Color:       15,
-			Description: fmt.Sprint("Failed to retrieve feed:\n", err),
-			Link:        "",
-			FeedLink:    tui.MainWidget.Feeds[i].FeedLink,
-			Items:       []*fd.Item{},
-			Merged:      false,
-		}
-	}
-
-	return nil
 }
 
 func (tui *Tui) updateSelectedFeed() error {
@@ -287,6 +294,7 @@ func (tui *Tui) updateAllFeed() error {
 
 	if len(tui.MainWidget.Feeds) > 0 {
 		tui.GetTodaysFeeds()
+		tui.MainWidget.Table.ScrollToBeginning()
 	}
 	tui.MainWidget.setFeeds()
 
@@ -303,7 +311,7 @@ func (tui *Tui) selectMainRow(row, column int) {
 	}
 	if tui.App.GetFocus() == tui.MainWidget.Table {
 		if len(tui.MainWidget.Feeds) > 0 {
-			tui.showDescription(fmt.Sprint(feed.Title, "\n", feed.Link))
+			tui.showDescription(fmt.Sprint("Title:     ", feed.Title, "\n", "Link:      ", feed.Link, "\n", "Colorcode: ", feed.Color))
 		}
 		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
@@ -317,7 +325,7 @@ func (tui *Tui) selectSubRow(row, column int) {
 	}
 	if tui.App.GetFocus() == tui.SubWidget.Table {
 		if len(tui.SubWidget.Items) > 0 {
-			tui.showDescription(fmt.Sprint(item.Belong, "\n", item.FormatDate(), "\n", item.Title, "\n", item.Link))
+			tui.showDescription(fmt.Sprint(item.FormatDate(), "\n", item.Title, "\n", item.Link))
 		}
 		tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 	}
@@ -471,6 +479,11 @@ func (tui *Tui) setAppFunctions() {
 				return nil
 			case 'v':
 				tui.SelectFeed()
+			case 'c':
+				tui.InputWidget.Input.SetTitle("Change the feed's color")
+				tui.InputWidget.Mode = 2
+				tui.Pages.ShowPage(inputField)
+				tui.App.SetFocus(tui.InputWidget.Input)
 			case 'm':
 				if len(tui.SelectingFeeds) > 0 {
 					tui.InputWidget.Input.SetTitle("Make a Group")
@@ -507,7 +520,7 @@ func (tui *Tui) setAppFunctions() {
 				row, _ := tui.SubWidget.Table.GetSelection()
 				browser := os.Getenv("BROWSER")
 				if browser == "" {
-					tui.showDescription("$BROWSER is empty. Set it and try again.")
+					tui.Notify("$BROWSER is empty. Set it and try again.")
 				} else {
 					if err := execCmd(true, browser, tui.SubWidget.Items[row].Link); err != nil {
 						panic(err)
@@ -528,7 +541,7 @@ func (tui *Tui) setAppFunctions() {
 					row, _ := tui.SubWidget.Table.GetSelection()
 					browser := os.Getenv("BROWSER")
 					if browser == "" {
-						tui.showDescription("$BROWSER is empty. Set it and try again.")
+						tui.Notify("$BROWSER is empty. Set it and try again.")
 					} else {
 						if err := execCmd(true, browser, tui.SubWidget.Items[row].Link); err != nil {
 							panic(err)
@@ -561,7 +574,7 @@ func (tui *Tui) setAppFunctions() {
 			switch tui.InputWidget.Mode {
 			case 0: // new feed
 				if err := tui.AddFeedFromURL(tui.InputWidget.Input.GetText()); err != nil {
-					tui.Notify(err.Error())
+					tui.NotifyError(err.Error())
 				}
 			case 1: // merge feeds
 				title := tui.InputWidget.Input.GetText()
@@ -580,6 +593,24 @@ func (tui *Tui) setAppFunctions() {
 					tui.App.QueueUpdateDraw(func() {})
 					tui.WaitGroup.Done()
 				}()
+			case 2:
+				number, err := strconv.Atoi(tui.InputWidget.Input.GetText())
+				if err != nil {
+					//log.Println(errors.WithStack(err))
+					tui.NotifyError(err.Error())
+				} else {
+					if number < 0 {
+						number *= -1
+					}
+					number %= len(fd.ValidColorCode)
+					row, _ := tui.MainWidget.Table.GetSelection()
+					tui.MainWidget.Feeds[row].Color = number
+					if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row]); err != nil {
+						panic(err)
+					}
+					tui.MainWidget.setFeeds()
+					tui.Notify(fmt.Sprint("set color-number as ", number))
+				}
 			}
 			tui.SelectingFeeds = []*fd.Feed{}
 			tui.InputWidget.Input.SetText("")

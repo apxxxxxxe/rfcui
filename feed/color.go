@@ -4,7 +4,8 @@ import (
 	"math"
 )
 
-var validColorCode = getComfortableColors(100, 200, 50)
+var ValidColorCode = getComfortableColors(0, 256, 0)
+var ComfortableColorCode = getComfortableColors(100, 200, 50)
 
 func getBrightness(r, g, b int32) int {
 	return int(math.Round(float64(r)*0.299 + float64(g)*0.587 + float64(b)*0.114))
