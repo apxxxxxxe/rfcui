@@ -256,7 +256,9 @@ func (tui *Tui) updateAllFeed() error {
 			if err := tui.updateFeed(i); err != nil {
 				log.Println(err)
 			} else {
-				tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[i])
+				if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[i]); err != nil {
+					panic(err)
+				}
 			}
 			doneCount++
 			if doneCount == length {
