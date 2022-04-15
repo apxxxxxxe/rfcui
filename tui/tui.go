@@ -91,12 +91,19 @@ func (tui *Tui) AddGroup(group *fd.Group) error {
 }
 
 func (tui *Tui) updateFeed(index int) error {
-	url := tui.MainWidget.Feeds[index].FeedLink
+	targetFeed := tui.MainWidget.Feeds[index]
+	url := targetFeed.FeedLink
 	feed, err := fd.GetFeedFromURL(url, "")
+
 	if err != nil {
 		feed = getInvalidFeed(url, err)
 	}
-	tui.MainWidget.Feeds[index].Items = feed.Items
+
+	for _, item := range feed.Items {
+		item.Color = targetFeed.Color
+	}
+
+	targetFeed.Items = feed.Items
 
 	return err
 }
