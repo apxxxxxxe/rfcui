@@ -48,6 +48,9 @@ func MergeFeeds(feeds []*Feed, title string) *Feed {
 	mergedItems := []*Item{}
 
 	for _, feed := range feeds {
+		if feed == nil {
+			continue
+		}
 		if !feed.Merged {
 			mergedItems = append(mergedItems, feed.Items...)
 		}
@@ -76,9 +79,9 @@ func parseTime(clock string) time.Time {
 		tm, _ = time.Parse(ISO8601, clock)
 	} else if delimita[0] == "," && delimita[1] == " " {
 		tm, _ = time.Parse(time.RFC1123, clock)
-	} else {
-		// 候補に該当しない形式はエラー
-	}
+	} // else {
+	// 候補に該当しない形式はエラー
+	//}
 	return tm
 }
 

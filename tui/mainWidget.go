@@ -31,7 +31,10 @@ func (m *MainWidget) SaveFeed(f *fd.Feed) error {
 		return err
 	}
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(f.FeedLink)))
-	myio.SaveBytes(b, filepath.Join(getDataPath()[0], hash))
+
+	if err := myio.SaveBytes(b, filepath.Join(getDataPath()[0], hash)); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -62,7 +65,11 @@ func (m *MainWidget) SaveGroup(g *fd.Group) error {
 		return err
 	}
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(g.Title)))
-	myio.SaveBytes(b, filepath.Join(getDataPath()[1], hash))
+
+	if err := myio.SaveBytes(b, filepath.Join(getDataPath()[1], hash)); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -69,23 +69,32 @@ func (tui *Tui) AddFeedFromGroup(group *fd.Group) {
 	tui.MainWidget.setFeeds()
 }
 
-func (tui *Tui) AddGroup(group *fd.Group) {
+func (tui *Tui) AddGroup(group *fd.Group) error {
 	for i, g := range tui.MainWidget.Groups {
 		if g.Title == group.Title {
 			tui.MainWidget.Groups[i].FeedLinks = uniqSlice(append(tui.MainWidget.Groups[i].FeedLinks, group.FeedLinks...))
 			tui.Notify("Add some links to " + g.Title + ".")
-			tui.MainWidget.SaveGroup(group)
-			return
+			if err := tui.MainWidget.SaveGroup(group); err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 	tui.MainWidget.Groups = append(tui.MainWidget.Groups, group)
 	tui.Notify("Made a group named " + group.Title + ".")
-	tui.MainWidget.SaveGroup(group)
+	if err := tui.MainWidget.SaveGroup(group); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (tui *Tui) AddFeedFromURL(url string) error {
 	f, err := fd.GetFeedFromURL(url, "")
 	if err != nil {
+		return err
+	}
+
+	if err := tui.MainWidget.SaveFeed(f); err != nil {
 		return err
 	}
 
@@ -96,7 +105,6 @@ func (tui *Tui) AddFeedFromURL(url string) error {
 			return nil
 		}
 	}
-	tui.MainWidget.SaveFeed(f)
 	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, f)
 	tui.MainWidget.setFeeds()
 	return nil
@@ -198,7 +206,15 @@ func (tui *Tui) updateFeed(i int) error {
 	var err error
 	tui.MainWidget.Feeds[i], err = fd.GetFeedFromURL(tui.MainWidget.Feeds[i].FeedLink, "")
 	if err != nil {
-		return err
+		tui.MainWidget.Feeds[i] = &fd.Feed{
+			Title:       "failed to retrieve: " + tui.MainWidget.Feeds[i].FeedLink,
+			Color:       15,
+			Description: fmt.Sprint("Failed to retrieve feed:\n", err),
+			Link:        "",
+			FeedLink:    tui.MainWidget.Feeds[i].FeedLink,
+			Items:       []*fd.Item{},
+			Merged:      false,
+		}
 	}
 
 	return nil
@@ -213,7 +229,10 @@ func (tui *Tui) updateSelectedFeed() error {
 		return err
 	}
 
-	tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row])
+	if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row]); err != nil {
+		return err
+	}
+
 	tui.setItems(tui.MainWidget.Feeds[row].Merged)
 	if len(tui.MainWidget.Feeds) > 0 {
 		tui.GetTodaysFeeds()
@@ -233,15 +252,27 @@ func (tui *Tui) updateAllFeed() error {
 	for index := range tui.MainWidget.Feeds {
 		wg.Add(1)
 		go func(i int) {
-			tui.updateFeed(i)
-			tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[i])
+			if err := tui.updateFeed(i); err != nil {
+				fmt.Println(err)
+			}
 			doneCount++
-			tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds..."))
+			tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
+			fmt.Print("Updating ", doneCount, "/", length, " feeds...\r")
 			tui.App.ForceDraw()
 			wg.Done()
 		}(index)
 	}
 	wg.Wait()
+
+	for i, feed := range tui.MainWidget.Feeds {
+		if feed == nil {
+			tui.MainWidget.deleteFeed(i)
+		}
+	}
+
+	if err := tui.MainWidget.SaveFeeds(); err != nil {
+		return err
+	}
 
 	for _, g := range tui.MainWidget.Groups {
 		isExist := false
@@ -427,10 +458,14 @@ func (tui *Tui) setAppFunctions() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'R':
-				tui.updateAllFeed()
+				if err := tui.updateAllFeed(); err != nil {
+					panic(err)
+				}
 				return nil
 			case 'r':
-				tui.updateSelectedFeed()
+				if err := tui.updateSelectedFeed(); err != nil {
+					panic(err)
+				}
 				return nil
 			case 'l':
 				tui.App.SetFocus(tui.SubWidget.Table)
@@ -450,7 +485,9 @@ func (tui *Tui) setAppFunctions() {
 				return nil
 			case 'd':
 				if tui.DeleteConfirm {
-					tui.MainWidget.DeleteSelection()
+					if err := tui.MainWidget.DeleteSelection(); err != nil {
+						panic(err)
+					}
 					tui.MainWidget.setFeeds()
 					tui.Notify("Deleted.")
 					tui.DeleteConfirm = false
@@ -474,7 +511,9 @@ func (tui *Tui) setAppFunctions() {
 				if browser == "" {
 					tui.showDescription("$BROWSER is empty. Set it and try again.")
 				} else {
-					execCmd(true, browser, tui.SubWidget.Items[row].Link)
+					if err := execCmd(true, browser, tui.SubWidget.Items[row].Link); err != nil {
+						panic(err)
+					}
 				}
 				return nil
 			case tcell.KeyRune:
@@ -493,7 +532,9 @@ func (tui *Tui) setAppFunctions() {
 					if browser == "" {
 						tui.showDescription("$BROWSER is empty. Set it and try again.")
 					} else {
-						execCmd(true, browser, tui.SubWidget.Items[row].Link)
+						if err := execCmd(true, browser, tui.SubWidget.Items[row].Link); err != nil {
+							panic(err)
+						}
 					}
 					return nil
 				}
@@ -530,7 +571,9 @@ func (tui *Tui) setAppFunctions() {
 				for _, f := range tui.SelectingFeeds {
 					links = append(links, f.FeedLink)
 				}
-				tui.AddGroup(&fd.Group{Title: title, FeedLinks: links})
+				if err := tui.AddGroup(&fd.Group{Title: title, FeedLinks: links}); err != nil {
+					panic(err)
+				}
 				tui.WaitGroup.Add(1)
 				go func() {
 					if err := tui.updateAllFeed(); err != nil {
@@ -612,7 +655,9 @@ func (tui *Tui) Run() error {
 
 	for _, path := range getDataPath() {
 		if !myio.IsDir(path) {
-			os.MkdirAll(path, 0755)
+			if err := os.MkdirAll(path, 0755); err != nil {
+				return err
+			}
 		}
 	}
 
