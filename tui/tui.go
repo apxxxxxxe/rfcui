@@ -3,6 +3,7 @@ package tui
 import (
 	"crypto/md5"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -253,25 +254,19 @@ func (tui *Tui) updateAllFeed() error {
 		wg.Add(1)
 		go func(i int) {
 			if err := tui.updateFeed(i); err != nil {
-				fmt.Println(err)
+				log.Println(err)
+			} else {
+				tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[i])
 			}
 			doneCount++
-			tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
-			fmt.Print("Updating ", doneCount, "/", length, " feeds...\r")
+			if doneCount == length {
+				tui.Notify("All feeds are up-to-date.")
+			} else {
+				tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
+			}
 			tui.App.ForceDraw()
 			wg.Done()
 		}(index)
-	}
-	wg.Wait()
-
-	for i, feed := range tui.MainWidget.Feeds {
-		if feed == nil {
-			tui.MainWidget.deleteFeed(i)
-		}
-	}
-
-	if err := tui.MainWidget.SaveFeeds(); err != nil {
-		return err
 	}
 
 	for _, g := range tui.MainWidget.Groups {
@@ -289,7 +284,6 @@ func (tui *Tui) updateAllFeed() error {
 	if len(tui.MainWidget.Feeds) > 0 {
 		tui.GetTodaysFeeds()
 	}
-	tui.Notify("All feeds are up-to-date.")
 	tui.MainWidget.setFeeds()
 
 	return nil
