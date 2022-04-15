@@ -10,8 +10,9 @@ const (
 	chromaLowerLimit     = 50
 )
 
-var ComfortableColorCode = getComfortableColors(brightnessLowerLimit, chromaUpperLimit, chromaLowerLimit)
-var ValidColorCode = []int32{
+var ComfortableColorCode = narrowDownColors(brightnessLowerLimit, chromaUpperLimit, chromaLowerLimit)
+var ValidColorCode = narrowDownColors(0, 255, 0)
+var ColorCodes = []int32{
 	0x000000,
 	0x800000,
 	0x008000,
@@ -287,11 +288,11 @@ func RGB(v int32) (int32, int32, int32) {
 	return (v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff
 }
 
-func getComfortableColors(brightnessLowerLimit, chromaUpperLimit, chromaLowerLimit int) []int {
+func narrowDownColors(brightnessLowerLimit, chromaUpperLimit, chromaLowerLimit int) []int {
 
 	result := []int{}
 
-	for i, c := range ValidColorCode {
+	for i, c := range ColorCodes {
 		a := getBrightness(RGB(c))
 		b := getChroma(RGB(c))
 		if a > brightnessLowerLimit && b > chromaLowerLimit && b < chromaUpperLimit {

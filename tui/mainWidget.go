@@ -114,7 +114,7 @@ func (m *MainWidget) DeleteSelection() error {
 	}
 
 	if err := os.Remove(filepath.Join(dataPath, hash)); err != nil {
-		return err
+		return ErrRmFailed
 	}
 	return nil
 }

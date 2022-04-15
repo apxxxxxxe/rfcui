@@ -2,8 +2,8 @@ package tui
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +22,11 @@ const (
 	inputField      = "InputPopup"
 	descriptionPage = "descriptionPage"
 	mainPage        = "MainPage"
+)
+
+var (
+	ErrGettingFeedFailed = errors.New("failed to get feed")
+	ErrRmFailed          = errors.New("faled to remove files or dirs")
 )
 
 type Tui struct {
@@ -108,7 +113,12 @@ func (tui *Tui) updateFeed(index int) error {
 	}
 
 	tui.MainWidget.Feeds[index] = feed
-	return err
+
+	if err != nil {
+		return ErrGettingFeedFailed
+	} else {
+		return nil
+	}
 }
 
 func (tui *Tui) AddFeedFromURL(url string) error {
@@ -271,7 +281,9 @@ func (tui *Tui) updateAllFeed() error {
 		wg.Add(1)
 		go func(i int) {
 			if err := tui.updateFeed(i); err != nil {
-				log.Println(err)
+				if !errors.Is(err, ErrGettingFeedFailed) {
+					panic(err)
+				}
 			} else {
 				if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[i]); err != nil {
 					panic(err)
@@ -322,7 +334,7 @@ func (tui *Tui) selectMainRow(row, column int) {
 	}
 	if tui.App.GetFocus() == tui.MainWidget.Table {
 		if len(tui.MainWidget.Feeds) > 0 {
-			tui.showDescription(fmt.Sprint("Title:     ", feed.Title, "\n", "Link:      ", feed.Link, "\n", "Colorcode: ", feed.Color))
+			tui.showDescription(fmt.Sprint("Title:       ", feed.Title, "\n", "Link:        ", feed.Link, "\n", "Description: ", feed.Description, "\n", "Colorcode:   ", feed.Color))
 		}
 		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
@@ -508,7 +520,9 @@ func (tui *Tui) setAppFunctions() {
 			case 'd':
 				if tui.DeleteConfirm {
 					if err := tui.MainWidget.DeleteSelection(); err != nil {
-						panic(err)
+						if !errors.Is(err, ErrRmFailed) {
+							panic(err)
+						}
 					}
 					tui.MainWidget.setFeeds()
 					tui.Notify("Deleted.")
@@ -587,6 +601,14 @@ func (tui *Tui) setAppFunctions() {
 				if err := tui.AddFeedFromURL(tui.InputWidget.Input.GetText()); err != nil {
 					tui.NotifyError(err.Error())
 				}
+				tui.WaitGroup.Add(1)
+				go func() {
+					if err := tui.updateAllFeed(); err != nil {
+						panic(err)
+					}
+					tui.App.QueueUpdateDraw(func() {})
+					tui.WaitGroup.Done()
+				}()
 			case 1: // merge feeds
 				title := tui.InputWidget.Input.GetText()
 				links := []string{}
