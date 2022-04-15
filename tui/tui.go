@@ -297,6 +297,7 @@ func (tui *Tui) updateAllFeed() error {
 		tui.MainWidget.Table.ScrollToBeginning()
 	}
 	tui.MainWidget.setFeeds()
+	tui.RefreshTui()
 
 	return nil
 }
