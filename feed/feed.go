@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/apxxxxxxe/rfcui/tcellcolor"
+	mycolor "github.com/apxxxxxxe/rfcui/color"
 
 	"github.com/mmcdole/gofeed"
 	"github.com/pkg/errors"
@@ -89,5 +89,5 @@ func parseTime(clock string) time.Time {
 }
 
 func getComfortableColorIndex() int {
-	return int(tcellcolor.ValidColorCode[rand.Intn(len(tcellcolor.ValidColorCode))])
+	return int(mycolor.ValidColorCode[rand.Intn(len(mycolor.ValidColorCode))])
 }

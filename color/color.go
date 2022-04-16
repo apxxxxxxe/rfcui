@@ -1,4 +1,4 @@
-package tcellcolor
+package color
 
 import (
 	"github.com/gdamore/tcell/v2"

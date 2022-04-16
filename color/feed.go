@@ -1,4 +1,4 @@
-package tcellcolor
+package color
 
 import (
 	"math"
