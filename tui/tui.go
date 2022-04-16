@@ -600,8 +600,13 @@ func (tui *Tui) setAppFunctions() {
 
 	tui.InputWidget.Input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyESC:
+			tui.InputWidget.Input.SetText("")
+			tui.InputWidget.Input.SetTitle("Input")
+			tui.Pages.HidePage(inputField)
+			tui.App.SetFocus(tui.MainWidget.Table)
+			return nil
 		case tcell.KeyEnter:
-			//
 			switch tui.InputWidget.Mode {
 			case 0: // new feed
 				if err := tui.AddFeedFromURL(tui.InputWidget.Input.GetText()); err != nil {
