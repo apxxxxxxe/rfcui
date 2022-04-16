@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	mycolor "github.com/apxxxxxxe/rfcui/color"
 	fd "github.com/apxxxxxxe/rfcui/feed"
 	myio "github.com/apxxxxxxe/rfcui/io"
-	mycolor "github.com/apxxxxxxe/rfcui/color"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -497,9 +497,10 @@ func (tui *Tui) setAppFunctions() {
 				}
 				return nil
 			case 'r':
-				if err := tui.updateSelectedFeed(); err != nil {
-					panic(err)
-				}
+				tui.InputWidget.Input.SetTitle("rename the feed")
+				tui.InputWidget.Mode = 3
+				tui.Pages.ShowPage(inputField)
+				tui.App.SetFocus(tui.InputWidget.Input)
 				return nil
 			case 'l':
 				tui.App.SetFocus(tui.SubWidget.Table)
@@ -648,6 +649,19 @@ func (tui *Tui) setAppFunctions() {
 					tui.MainWidget.setFeeds()
 					tui.Notify(fmt.Sprint("set color-number as ", number))
 				}
+			case 3:
+				title := tui.InputWidget.Input.GetText()
+				row, _ := tui.MainWidget.Table.GetSelection()
+				selectedFeed := tui.MainWidget.Feeds[row]
+				selectedFeed.Title = title
+				if selectedFeed.Merged {
+					if err := tui.MainWidget.SaveGroups(); err != nil {
+						panic(err)
+					}
+				} else {
+					tui.MainWidget.SaveFeed(selectedFeed)
+				}
+				tui.MainWidget.setFeeds()
 			}
 			tui.SelectingFeeds = []*fd.Feed{}
 			tui.InputWidget.Input.SetText("")
