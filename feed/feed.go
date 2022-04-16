@@ -60,10 +60,7 @@ func (feed *Feed) GetFeedLink() (string, error) {
 }
 
 func (feed *Feed) IsMerged() bool {
-	if len(feed.FeedLinks) > 1 {
-		return true
-	}
-	return false
+	return len(feed.FeedLinks) > 1
 }
 
 func MergeFeeds(feeds []*Feed, title string) (*Feed, error) {

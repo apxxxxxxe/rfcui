@@ -115,7 +115,9 @@ func (m *MainWidget) DeleteItem(index int) error {
 	if v.IsMerged() {
 		dataPath = getDataPath()[1]
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.Title)))
-		m.deleteGroup(v.Title)
+		if err := m.deleteGroup(v.Title); err != nil {
+			return err
+		}
 	} else {
 		dataPath = getDataPath()[0]
 		feedLink, err := v.GetFeedLink()
@@ -135,13 +137,16 @@ func (m *MainWidget) deleteFeed(i int) {
 	m.Feeds = append(m.Feeds[:i], m.Feeds[i+1:]...)
 }
 
-func (m *MainWidget) deleteGroup(title string) {
-	m.deleteGroupData(title)
+func (m *MainWidget) deleteGroup(title string) error {
+	if err := m.deleteGroupData(title); err != nil {
+		return err
+	}
 	for i, g := range m.Groups {
 		if title == g.Title {
 			m.Groups = append(m.Groups[:i], m.Groups[i+1:]...)
 		}
 	}
+	return nil
 }
 
 func (m *MainWidget) deleteGroupData(title string) error {

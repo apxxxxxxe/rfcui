@@ -273,29 +273,6 @@ func getInvalidFeed(url string, err error) *fd.Feed {
 	}
 }
 
-func (tui *Tui) updateSelectedFeed() error {
-	tui.Notify("Updating...")
-	tui.App.ForceDraw()
-
-	row, _ := tui.MainWidget.Table.GetSelection()
-	if err := tui.updateFeed(row); err != nil {
-		return err
-	}
-
-	if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row]); err != nil {
-		return err
-	}
-
-	tui.setItems(tui.MainWidget.Feeds[row].IsMerged())
-	if len(tui.MainWidget.Feeds) > 0 {
-		tui.GetTodaysFeeds()
-	}
-	tui.Notify("Updated.")
-	tui.App.SetFocus(tui.MainWidget.Table)
-
-	return nil
-}
-
 func (tui *Tui) updateAllFeed() error {
 	length := len(tui.MainWidget.Feeds)
 	doneCount := 0
@@ -335,12 +312,16 @@ func (tui *Tui) updateAllFeed() error {
 			}
 		}
 		if !isExist {
-			tui.AddFeedFromGroup(g)
+			if err := tui.AddFeedFromGroup(g); err != nil {
+				return err
+			}
 		}
 	}
 
 	if len(tui.MainWidget.Feeds) > 0 {
-		tui.GetTodaysFeeds()
+		if err := tui.GetTodaysFeeds(); err != nil {
+			return err
+		}
 		tui.MainWidget.Table.ScrollToBeginning()
 	}
 	tui.MainWidget.setFeeds()
@@ -707,7 +688,9 @@ func (tui *Tui) setAppFunctions() {
 						panic(err)
 					}
 				} else {
-					tui.MainWidget.SaveFeed(selectedFeed)
+					if err := tui.MainWidget.SaveFeed(selectedFeed); err != nil {
+						panic(err)
+					}
 				}
 				tui.MainWidget.setFeeds()
 			}
