@@ -10,14 +10,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+var ErrGetFeedLinkFailed = errors.New("tried to get feed link from a merged feed")
+
 type Feed struct {
 	Title       string
 	Color       int
 	Description string
 	Link        string
-	FeedLink    string
+	FeedLinks   []string
 	Items       []*Item
-	Merged      bool
 }
 
 func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
@@ -36,10 +37,14 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 		title = parsedFeed.Title
 	}
 
-	feed := &Feed{title, color, parsedFeed.Description, parsedFeed.Link, url, []*Item{}, false}
+	feed := &Feed{title, color, parsedFeed.Description, parsedFeed.Link, []string{url}, []*Item{}}
 
 	for _, item := range parsedFeed.Items {
-		feed.Items = append(feed.Items, &Item{feed.FeedLink, feed.Color, item.Title, item.Description, parseTime(item.Published), item.Link})
+		feedLink, err := feed.GetFeedLink()
+		if err != nil {
+			return nil, err
+		}
+		feed.Items = append(feed.Items, &Item{feedLink, feed.Color, item.Title, item.Description, parseTime(item.Published), item.Link})
 	}
 
 	feed.Items = formatItems(feed.Items)
@@ -47,15 +52,35 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 	return feed, nil
 }
 
-func MergeFeeds(feeds []*Feed, title string) *Feed {
+func (feed *Feed) GetFeedLink() (string, error) {
+	if feed.IsMerged() {
+		return "", ErrGetFeedLinkFailed
+	}
+	return feed.FeedLinks[0], nil
+}
+
+func (feed *Feed) IsMerged() bool {
+	if len(feed.FeedLinks) > 1 {
+		return true
+	}
+	return false
+}
+
+func MergeFeeds(feeds []*Feed, title string) (*Feed, error) {
 	mergedItems := []*Item{}
+	mergedFeedlinks := []string{}
 
 	for _, feed := range feeds {
 		if feed == nil {
 			continue
 		}
-		if !feed.Merged {
+		if !feed.IsMerged() {
 			mergedItems = append(mergedItems, feed.Items...)
+			feedLink, err := feed.GetFeedLink()
+			if err != nil {
+				return nil, err
+			}
+			mergedFeedlinks = append(mergedFeedlinks, feedLink)
 		}
 	}
 	mergedItems = formatItems(mergedItems)
@@ -65,10 +90,9 @@ func MergeFeeds(feeds []*Feed, title string) *Feed {
 		Color:       15,
 		Description: "",
 		Link:        "",
-		FeedLink:    "",
+		FeedLinks:   mergedFeedlinks,
 		Items:       mergedItems,
-		Merged:      true,
-	}
+	}, nil
 }
 
 func parseTime(clock string) time.Time {

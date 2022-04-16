@@ -23,7 +23,7 @@ type MainWidget struct {
 }
 
 func (m *MainWidget) SaveFeed(f *fd.Feed) error {
-	if f.Merged {
+	if f.IsMerged() {
 		return nil
 	}
 
@@ -31,7 +31,11 @@ func (m *MainWidget) SaveFeed(f *fd.Feed) error {
 	if err != nil {
 		return err
 	}
-	hash := fmt.Sprintf("%x", md5.Sum([]byte(f.FeedLink)))
+	feedLink, err := f.GetFeedLink()
+	if err != nil {
+		return err
+	}
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
 
 	if err := myio.SaveBytes(b, filepath.Join(getDataPath()[0], hash)); err != nil {
 		return err
@@ -96,22 +100,29 @@ func (m *MainWidget) LoadGroups(path string) error {
 
 func (m *MainWidget) DeleteSelection() error {
 	row, _ := m.Table.GetSelection()
-	v := m.Feeds[row]
+	if err := m.DeleteItem(row); err != nil {
+		return err
+	}
+	return nil
+}
 
-	m.deleteFeed(row)
+func (m *MainWidget) DeleteItem(index int) error {
+	v := m.Feeds[index]
+
+	m.deleteFeed(index)
 
 	var dataPath, hash string
-	if v.Merged {
+	if v.IsMerged() {
 		dataPath = getDataPath()[1]
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.Title)))
-		for i, g := range m.Groups {
-			if v.Title == g.Title {
-				m.deleteGroup(i)
-			}
-		}
+		m.deleteGroup(v.Title)
 	} else {
 		dataPath = getDataPath()[0]
-		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.FeedLink)))
+		feedLink, err := v.GetFeedLink()
+		if err != nil {
+			return err
+		}
+		hash = fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
 	}
 
 	if err := os.Remove(filepath.Join(dataPath, hash)); err != nil {
@@ -124,8 +135,21 @@ func (m *MainWidget) deleteFeed(i int) {
 	m.Feeds = append(m.Feeds[:i], m.Feeds[i+1:]...)
 }
 
-func (m *MainWidget) deleteGroup(i int) {
-	m.Groups = append(m.Groups[:i], m.Groups[i+1:]...)
+func (m *MainWidget) deleteGroup(title string) {
+	m.deleteGroupData(title)
+	for i, g := range m.Groups {
+		if title == g.Title {
+			m.Groups = append(m.Groups[:i], m.Groups[i+1:]...)
+		}
+	}
+}
+
+func (m *MainWidget) deleteGroupData(title string) error {
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(title)))
+	if err := os.Remove(filepath.Join(getDataPath()[1], hash)); err != nil {
+		return ErrRmFailed
+	}
+	return nil
 }
 
 func (m *MainWidget) sortFeeds() {
@@ -135,7 +159,7 @@ func (m *MainWidget) sortFeeds() {
 		return bytes.Compare(a, b) == -1
 	})
 	sort.Slice(m.Feeds, func(i, j int) bool {
-		return m.Feeds[i].Merged && !m.Feeds[j].Merged
+		return m.Feeds[i].IsMerged() && !m.Feeds[j].IsMerged()
 	})
 }
 
@@ -144,7 +168,7 @@ func (m *MainWidget) setFeeds() {
 	table := m.Table.Clear()
 	for i, feed := range m.Feeds {
 		table.SetCellSimple(i, 0, feed.Title)
-		if !feed.Merged {
+		if !feed.IsMerged() {
 			if feed.Color < 0 || feed.Color > len(mycolor.TcellColors) {
 				table.GetCell(i, 0).SetTextColor(mycolor.TcellColors[15])
 			} else {
@@ -159,9 +183,10 @@ func (m *MainWidget) setFeeds() {
 	}
 }
 
-func (m *MainWidget) setGroups() {
+func (m *MainWidget) setGroups() error {
+
 	for i, f := range m.Feeds {
-		if f.Merged {
+		if f.IsMerged() {
 			m.deleteFeed(i)
 		}
 	}
@@ -171,12 +196,21 @@ func (m *MainWidget) setGroups() {
 		feeds := []*fd.Feed{}
 		for _, link := range g.FeedLinks {
 			for _, f := range m.Feeds {
-				if link == f.FeedLink {
+				feedLink, err := f.GetFeedLink()
+				if err != nil {
+					return err
+				}
+				if link == feedLink {
 					feeds = append(feeds, f)
 				}
 			}
 		}
-		results = append(results, fd.MergeFeeds(feeds, g.Title))
+		mergedFeed, err := fd.MergeFeeds(feeds, g.Title)
+		if err != nil {
+			return err
+		}
+		results = append(results, mergedFeed)
 	}
 	m.Feeds = append(m.Feeds, results...)
+	return nil
 }

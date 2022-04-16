@@ -64,17 +64,26 @@ func (tui *Tui) SelectFeed() {
 	}
 }
 
-func (tui *Tui) AddFeedFromGroup(group *fd.Group) {
+func (tui *Tui) AddFeedFromGroup(group *fd.Group) error {
 	targetFeeds := []*fd.Feed{}
 	for _, f := range tui.MainWidget.Feeds {
 		for _, link := range group.FeedLinks {
-			if link == f.FeedLink {
+			feedLink, err := f.GetFeedLink()
+			if err != nil {
+				return err
+			}
+			if link == feedLink {
 				targetFeeds = append(targetFeeds, f)
 			}
 		}
 	}
-	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, fd.MergeFeeds(targetFeeds, group.Title))
+	mergedFeed, err := fd.MergeFeeds(targetFeeds, group.Title)
+	if err != nil {
+		return err
+	}
+	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, mergedFeed)
 	tui.MainWidget.setFeeds()
+	return nil
 }
 
 func (tui *Tui) AddGroup(group *fd.Group) error {
@@ -98,12 +107,16 @@ func (tui *Tui) AddGroup(group *fd.Group) error {
 
 func (tui *Tui) updateFeed(index int) error {
 	targetFeed := tui.MainWidget.Feeds[index]
-	if targetFeed.Merged {
+	if targetFeed.IsMerged() {
 		return nil
 	}
 
 	color := targetFeed.Color
-	url := targetFeed.FeedLink
+	url, err := targetFeed.GetFeedLink()
+	if err != nil {
+		return fmt.Errorf(targetFeed.Title, ": ", err)
+	}
+
 	feed, err := fd.GetFeedFromURL(url, "")
 
 	if err != nil {
@@ -137,7 +150,11 @@ func (tui *Tui) AddFeedFromURL(url string) error {
 	}
 
 	for i, feed := range tui.MainWidget.Feeds {
-		if feed.FeedLink == url {
+		feedLink, err := feed.GetFeedLink()
+		if err != nil {
+			return err
+		}
+		if feedLink == url {
 			tui.MainWidget.Feeds[i] = f
 			tui.MainWidget.setFeeds()
 			return nil
@@ -211,10 +228,13 @@ func (tui *Tui) setItems(paintColor bool) {
 	}
 }
 
-func (tui *Tui) GetTodaysFeeds() {
+func (tui *Tui) GetTodaysFeeds() error {
 	const feedname = "Today's Items"
 
-	targetfeed := fd.MergeFeeds(tui.MainWidget.Feeds, feedname)
+	targetfeed, err := fd.MergeFeeds(tui.MainWidget.Feeds, feedname)
+	if err != nil {
+		return err
+	}
 
 	// 現在時刻より未来のフィードを除外
 	now := time.Now()
@@ -239,6 +259,7 @@ func (tui *Tui) GetTodaysFeeds() {
 		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, targetfeed)
 	}
 	tui.MainWidget.setFeeds()
+	return nil
 }
 
 func getInvalidFeed(url string, err error) *fd.Feed {
@@ -247,9 +268,8 @@ func getInvalidFeed(url string, err error) *fd.Feed {
 		Color:       1, // Red
 		Description: fmt.Sprint("Failed to retrieve feed:\n", err),
 		Link:        "",
-		FeedLink:    url,
+		FeedLinks:   []string{url},
 		Items:       []*fd.Item{},
-		Merged:      false,
 	}
 }
 
@@ -266,7 +286,7 @@ func (tui *Tui) updateSelectedFeed() error {
 		return err
 	}
 
-	tui.setItems(tui.MainWidget.Feeds[row].Merged)
+	tui.setItems(tui.MainWidget.Feeds[row].IsMerged())
 	if len(tui.MainWidget.Feeds) > 0 {
 		tui.GetTodaysFeeds()
 	}
@@ -335,7 +355,7 @@ func (tui *Tui) selectMainRow(row, column int) {
 	tui.DeleteConfirm = false
 	if len(tui.MainWidget.Feeds) > 0 {
 		feed = tui.MainWidget.Feeds[row]
-		tui.setItems(tui.MainWidget.Feeds[row].Merged)
+		tui.setItems(tui.MainWidget.Feeds[row].IsMerged())
 	}
 	if tui.App.GetFocus() == tui.MainWidget.Table {
 		if len(tui.MainWidget.Feeds) > 0 {
@@ -346,14 +366,31 @@ func (tui *Tui) selectMainRow(row, column int) {
 }
 
 func (tui *Tui) selectSubRow(row, column int) {
-	var item *fd.Item
+	var (
+		item      *fd.Item
+		feedTitle = ""
+	)
 	tui.Notify("")
 	if len(tui.SubWidget.Items) > 0 {
 		item = tui.SubWidget.Items[row]
 	}
+
+	index, _ := tui.MainWidget.Table.GetSelection()
+	parentFeed := tui.MainWidget.Feeds[index]
+
 	if tui.App.GetFocus() == tui.SubWidget.Table {
 		if len(tui.SubWidget.Items) > 0 {
-			tui.showDescription(fmt.Sprint(item.FormatDate(), "\n", item.Title, "\n", item.Link))
+			if parentFeed.IsMerged() {
+				for _, feed := range tui.MainWidget.Feeds {
+					feedLink, err := feed.GetFeedLink()
+					if err != fd.ErrGetFeedLinkFailed {
+						if item.Belong == feedLink {
+							feedTitle = fmt.Sprint(feed.Title, "\n")
+						}
+					}
+				}
+			}
+			tui.showDescription(fmt.Sprint(feedTitle, item.FormatDate(), "\n", item.Title, "\n", item.Link))
 		}
 		tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 	}
@@ -394,9 +431,8 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 			Color:       -1,
 			Description: "update to get details",
 			Link:        "",
-			FeedLink:    url,
+			FeedLinks:   []string{url},
 			Items:       []*fd.Item{},
-			Merged:      false,
 		}
 		tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, f)
 	}
@@ -624,7 +660,11 @@ func (tui *Tui) setAppFunctions() {
 				title := tui.InputWidget.Input.GetText()
 				links := []string{}
 				for _, f := range tui.SelectingFeeds {
-					links = append(links, f.FeedLink)
+					feedLink, err := f.GetFeedLink()
+					if err != nil {
+						panic(err)
+					}
+					links = append(links, feedLink)
 				}
 				if err := tui.AddGroup(&fd.Group{Title: title, FeedLinks: links}); err != nil {
 					panic(err)
@@ -659,7 +699,10 @@ func (tui *Tui) setAppFunctions() {
 				row, _ := tui.MainWidget.Table.GetSelection()
 				selectedFeed := tui.MainWidget.Feeds[row]
 				selectedFeed.Title = title
-				if selectedFeed.Merged {
+				if selectedFeed.IsMerged() {
+					if err := tui.MainWidget.deleteGroupData(selectedFeed.Title); err != nil {
+						panic(err)
+					}
 					if err := tui.MainWidget.SaveGroups(); err != nil {
 						panic(err)
 					}
