@@ -75,7 +75,7 @@ func parseTime(clock string) time.Time {
 	const ISO8601 = "2006-01-02T15:04:05+09:00"
 	var (
 		tm          time.Time
-		finalFormat string
+		finalFormat = ISO8601
 		formats     = []string{
 			ISO8601,
 			time.ANSIC,
@@ -109,6 +109,7 @@ func parseTime(clock string) time.Time {
 			default:
 				finalFormat = format
 			}
+			break
 		}
 	}
 
