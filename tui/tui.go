@@ -97,6 +97,10 @@ func (tui *Tui) AddGroup(group *fd.Group) error {
 
 func (tui *Tui) updateFeed(index int) error {
 	targetFeed := tui.MainWidget.Feeds[index]
+	if targetFeed.Merged {
+		return nil
+	}
+
 	color := targetFeed.Color
 	url := targetFeed.FeedLink
 	feed, err := fd.GetFeedFromURL(url, "")
@@ -629,7 +633,6 @@ func (tui *Tui) setAppFunctions() {
 			case 2:
 				number, err := strconv.Atoi(tui.InputWidget.Input.GetText())
 				if err != nil {
-					//log.Println(errors.WithStack(err))
 					tui.NotifyError(err.Error())
 				} else {
 					if number < 0 {
