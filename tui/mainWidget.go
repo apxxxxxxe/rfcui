@@ -11,6 +11,7 @@ import (
 
 	fd "github.com/apxxxxxxe/rfcui/feed"
 	myio "github.com/apxxxxxxe/rfcui/io"
+	"github.com/apxxxxxxe/rfcui/tcellcolor"
 
 	"github.com/rivo/tview"
 )
@@ -144,10 +145,10 @@ func (m *MainWidget) setFeeds() {
 	for i, feed := range m.Feeds {
 		table.SetCellSimple(i, 0, feed.Title)
 		if !feed.Merged {
-			if feed.Color < 0 || feed.Color > len(tcellColors) {
-				table.GetCell(i, 0).SetTextColor(tcellColors[15])
+			if feed.Color < 0 || feed.Color > len(tcellcolor.TcellColors) {
+				table.GetCell(i, 0).SetTextColor(tcellcolor.TcellColors[15])
 			} else {
-				table.GetCell(i, 0).SetTextColor(tcellColors[feed.Color])
+				table.GetCell(i, 0).SetTextColor(tcellcolor.TcellColors[feed.Color])
 			}
 		}
 	}

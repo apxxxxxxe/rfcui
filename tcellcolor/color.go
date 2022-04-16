@@ -1,10 +1,10 @@
-package tui
+package tcellcolor
 
 import (
 	"github.com/gdamore/tcell/v2"
 )
 
-var tcellColors = []tcell.Color{
+var TcellColors = []tcell.Color{
 	tcell.ColorBlack,
 	tcell.ColorMaroon,
 	tcell.ColorGreen,

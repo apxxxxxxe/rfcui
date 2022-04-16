@@ -13,6 +13,7 @@ import (
 
 	fd "github.com/apxxxxxxe/rfcui/feed"
 	myio "github.com/apxxxxxxe/rfcui/io"
+	"github.com/apxxxxxxe/rfcui/tcellcolor"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -109,7 +110,7 @@ func (tui *Tui) updateFeed(index int) error {
 		feed = getInvalidFeed(url, err)
 	}
 
-	if color > 0 && color < len(tcellColors) {
+	if color > 0 && color < len(tcellcolor.TcellColors) {
 		for _, item := range feed.Items {
 			item.Color = targetFeed.Color
 		}
@@ -200,8 +201,8 @@ func (tui *Tui) setItems(paintColor bool) {
 	table := tui.SubWidget.Table.Clear()
 	for i, item := range items {
 		table.SetCellSimple(i, 0, item.Title)
-		if paintColor && item.Color > 0 && item.Color < len(tcellColors) {
-			table.GetCell(i, 0).SetTextColor(tcellColors[item.Color])
+		if paintColor && item.Color > 0 && item.Color < len(tcellcolor.TcellColors) {
+			table.GetCell(i, 0).SetTextColor(tcellcolor.TcellColors[item.Color])
 		}
 	}
 
@@ -638,7 +639,7 @@ func (tui *Tui) setAppFunctions() {
 					if number < 0 {
 						number *= -1
 					}
-					number %= len(fd.ValidColorCode)
+					number %= len(tcellcolor.ValidColorCode)
 					row, _ := tui.MainWidget.Table.GetSelection()
 					tui.MainWidget.Feeds[row].Color = number
 					if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row]); err != nil {
