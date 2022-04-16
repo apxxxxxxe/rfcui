@@ -72,19 +72,48 @@ func MergeFeeds(feeds []*Feed, title string) *Feed {
 }
 
 func parseTime(clock string) time.Time {
-	// 時刻の表示形式を一定のものに整形して返す
-	const (
-		ISO8601 = "2006-01-02T15:04:05+09:00"
+	const ISO8601 = "2006-01-02T15:04:05+09:00"
+	var (
+		tm          time.Time
+		finalFormat string
+		formats     = []string{
+			ISO8601,
+			time.ANSIC,
+			time.UnixDate,
+			time.RubyDate,
+			time.RFC822,
+			time.RFC822Z,
+			time.RFC850,
+			time.RFC1123,
+			time.RFC1123Z,
+			time.RFC3339,
+			time.RFC3339Nano,
+		}
 	)
-	var tm time.Time
-	delimita := [3]string{clock[3:4], clock[4:5], clock[10:11]}
-	if delimita[2] == "T" {
-		tm, _ = time.Parse(ISO8601, clock)
-	} else if delimita[0] == "," && delimita[1] == " " {
-		tm, _ = time.Parse(time.RFC1123, clock)
-	} // else {
-	// 候補に該当しない形式はエラー
-	//}
+
+	for _, format := range formats {
+		if len(clock) == len(format) {
+			switch len(clock) {
+			case len(ISO8601):
+				if clock[19:20] == "Z" {
+					finalFormat = time.RFC3339
+				} else {
+					finalFormat = ISO8601
+				}
+			case len(time.RubyDate):
+				if clock[3:4] == " " {
+					finalFormat = time.RubyDate
+				} else {
+					finalFormat = time.RFC850
+				}
+			default:
+				finalFormat = format
+			}
+		}
+	}
+
+	tm, _ = time.Parse(finalFormat, clock)
+
 	return tm
 }
 
