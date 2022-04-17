@@ -140,5 +140,5 @@ func parseTime(clock string) time.Time {
 }
 
 func getComfortableColorIndex() int {
-	return int(mycolor.ValidColorCode[rand.Intn(len(mycolor.ValidColorCode))])
+	return int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
 }
