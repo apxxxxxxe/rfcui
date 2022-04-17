@@ -72,22 +72,20 @@ func (m *MainWidget) DeleteSelection() error {
 }
 
 func (m *MainWidget) DeleteItem(index int) error {
-	v := m.Feeds[index]
+  var hash string
 
+	v := m.Feeds[index]
 	m.deleteFeed(index)
 
-	var dataPath, hash string
 	if v.IsMerged() {
+		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.Title)))
 	} else {
-		dataPath = getDataPath()
-		feedLink, err := v.GetFeedLink()
-		if err != nil {
-			return err
-		}
+		
+		feedLink, _ := v.GetFeedLink()
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
 	}
 
-	if err := os.Remove(filepath.Join(dataPath, hash)); err != nil {
+	if err := os.Remove(filepath.Join(getDataPath(), hash)); err != nil {
 		return ErrRmFailed
 	}
 	return nil
