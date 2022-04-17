@@ -2,6 +2,7 @@ package feed
 
 import (
 	"math/rand"
+	"sort"
 	"time"
 
 	mycolor "github.com/apxxxxxxe/rfcui/color"
@@ -44,10 +45,12 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 		if err != nil {
 			return nil, err
 		}
-		feed.Items = append(feed.Items, &Item{feedLink, feed.Color, item.Title, item.Description, parseTime(item.Published), item.Link})
+		if time.Now().After(parseTime(item.Published)) {
+			feed.Items = append(feed.Items, &Item{feedLink, feed.Color, item.Title, item.Description, parseTime(item.Published), item.Link})
+		}
 	}
 
-	feed.Items = formatItems(feed.Items)
+	feed.SortItems()
 
 	return feed, nil
 }
@@ -68,28 +71,25 @@ func MergeFeeds(feeds []*Feed, title string) (*Feed, error) {
 	mergedFeedlinks := []string{}
 
 	for _, feed := range feeds {
-		if feed == nil {
-			continue
-		}
 		if !feed.IsMerged() {
 			mergedItems = append(mergedItems, feed.Items...)
-			feedLink, err := feed.GetFeedLink()
-			if err != nil {
-				return nil, err
-			}
+			feedLink, _ := feed.GetFeedLink()
 			mergedFeedlinks = append(mergedFeedlinks, feedLink)
 		}
 	}
-	mergedItems = formatItems(mergedItems)
 
-	return &Feed{
+	resultFeed := &Feed{
 		Title:       title,
 		Color:       15,
 		Description: "",
 		Link:        "",
 		FeedLinks:   mergedFeedlinks,
 		Items:       mergedItems,
-	}, nil
+	}
+
+	resultFeed.SortItems()
+
+	return resultFeed, nil
 }
 
 func parseTime(clock string) time.Time {
@@ -141,4 +141,12 @@ func parseTime(clock string) time.Time {
 
 func getComfortableColorIndex() int {
 	return int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
+}
+
+func (feed *Feed) SortItems() {
+	sort.Slice(feed.Items, func(i, j int) bool {
+		a := feed.Items[i].PubDate
+		b := feed.Items[j].PubDate
+		return a.After(b)
+	})
 }

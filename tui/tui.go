@@ -64,79 +64,52 @@ func (tui *Tui) SelectFeed() {
 	}
 }
 
-func (tui *Tui) AddFeedFromGroup(group *fd.Group) error {
-	targetFeeds := []*fd.Feed{}
-	for _, f := range tui.MainWidget.Feeds {
-		for _, link := range group.FeedLinks {
-			feedLink, err := f.GetFeedLink()
-			if err != nil {
-				return err
-			}
-			if link == feedLink {
-				targetFeeds = append(targetFeeds, f)
-			}
-		}
-	}
-	mergedFeed, err := fd.MergeFeeds(targetFeeds, group.Title)
-	if err != nil {
-		return err
-	}
-	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, mergedFeed)
-	tui.MainWidget.setFeeds()
-	return nil
-}
-
-func (tui *Tui) AddGroup(group *fd.Group) error {
-	for i, g := range tui.MainWidget.Groups {
-		if g.Title == group.Title {
-			tui.MainWidget.Groups[i].FeedLinks = uniqSlice(append(tui.MainWidget.Groups[i].FeedLinks, group.FeedLinks...))
-			tui.Notify("Add some links to " + g.Title + ".")
-			if err := tui.MainWidget.SaveGroup(group); err != nil {
-				return err
-			}
-			return nil
-		}
-	}
-	tui.MainWidget.Groups = append(tui.MainWidget.Groups, group)
-	tui.Notify("Made a group named " + group.Title + ".")
-	if err := tui.MainWidget.SaveGroup(group); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (tui *Tui) updateFeed(index int) error {
 	targetFeed := tui.MainWidget.Feeds[index]
+
 	if targetFeed.IsMerged() {
-		return nil
-	}
-
-	color := targetFeed.Color
-	url, err := targetFeed.GetFeedLink()
-	if err != nil {
-		return fmt.Errorf(targetFeed.Title, ": ", err)
-	}
-
-	feed, err := fd.GetFeedFromURL(url, "")
-
-	if err != nil {
-		feed = getInvalidFeed(url, err)
-	}
-
-	if color > 0 && color < len(mycolor.TcellColors) {
-		for _, item := range feed.Items {
-			item.Color = targetFeed.Color
+		tui.MainWidget.Feeds[index].Items = []*fd.Item{}
+		for _, url := range targetFeed.FeedLinks {
+			for _, f := range tui.MainWidget.Feeds {
+				if !f.IsMerged() {
+					feedLink, _ := f.GetFeedLink()
+					if url == feedLink {
+						tui.MainWidget.Feeds[index].Items = append(tui.MainWidget.Feeds[index].Items, f.Items...)
+						break
+					}
+				}
+			}
 		}
-		feed.Color = color
-	}
+		tui.MainWidget.Feeds[index].SortItems()
 
-	tui.MainWidget.Feeds[index] = feed
-
-	if err != nil {
-		return ErrGettingFeedFailed
 	} else {
-		return nil
+		color := targetFeed.Color
+		url, err := targetFeed.GetFeedLink()
+		if err != nil {
+			return fmt.Errorf(targetFeed.Title, ": ", err)
+		}
+
+		feed, err := fd.GetFeedFromURL(url, "")
+
+		if err != nil {
+			feed = getInvalidFeed(url, err)
+		}
+
+		if color > 0 && color < len(mycolor.TcellColors) {
+			for _, item := range feed.Items {
+				item.Color = targetFeed.Color
+			}
+			feed.Color = color
+		}
+
+		feed.SortItems()
+		tui.MainWidget.Feeds[index] = feed
+
+		if err != nil {
+			return ErrGettingFeedFailed
+		}
 	}
+	return nil
 }
 
 func (tui *Tui) AddFeedFromURL(url string) error {
@@ -150,14 +123,19 @@ func (tui *Tui) AddFeedFromURL(url string) error {
 	}
 
 	for i, feed := range tui.MainWidget.Feeds {
-		feedLink, err := feed.GetFeedLink()
-		if err != nil {
-			return err
-		}
-		if feedLink == url {
-			tui.MainWidget.Feeds[i] = f
-			tui.MainWidget.setFeeds()
-			return nil
+		if f.IsMerged() {
+			if f.Title == feed.Title {
+				tui.MainWidget.Feeds[i] = f
+				tui.MainWidget.setFeeds()
+				return nil
+			}
+		} else {
+			feedLink, _ := feed.GetFeedLink()
+			if feedLink == url {
+				tui.MainWidget.Feeds[i] = f
+				tui.MainWidget.setFeeds()
+				return nil
+			}
 		}
 	}
 	tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, f)
@@ -173,12 +151,10 @@ func (tui *Tui) LoadCells(table *tview.Table, texts []string) {
 	}
 }
 
-func getDataPath() []string {
+func getDataPath() string {
 	const dataRoot = "cache"
-	const feedData = "feedData"
-	const groupData = "groupData"
 	pwd, _ := os.Getwd()
-	return []string{filepath.Join(pwd, dataRoot, feedData), filepath.Join(pwd, dataRoot, groupData)}
+	return filepath.Join(pwd, dataRoot)
 }
 
 func (tui *Tui) showDescription(text string) {
@@ -279,40 +255,36 @@ func (tui *Tui) updateAllFeed() error {
 
 	wg := sync.WaitGroup{}
 
-	for index := range tui.MainWidget.Feeds {
-		wg.Add(1)
-		go func(i int) {
-			if err := tui.updateFeed(i); err != nil {
-				if !errors.Is(err, ErrGettingFeedFailed) {
-					panic(err)
+	for index, feed := range tui.MainWidget.Feeds {
+		if !feed.IsMerged() {
+			wg.Add(1)
+			go func(i int) {
+				if err := tui.updateFeed(i); err != nil {
+					if !errors.Is(err, ErrGettingFeedFailed) {
+						panic(err)
+					}
+				} else {
+					if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[i]); err != nil {
+						panic(err)
+					}
 				}
-			} else {
-				if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[i]); err != nil {
-					panic(err)
+				doneCount++
+				if doneCount == length {
+					tui.Notify("All feeds are up-to-date.")
+				} else {
+					tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
 				}
-			}
-			doneCount++
-			if doneCount == length {
-				tui.Notify("All feeds are up-to-date.")
-			} else {
-				tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
-			}
-			tui.App.ForceDraw()
-			wg.Done()
-		}(index)
+				tui.App.ForceDraw()
+				wg.Done()
+			}(index)
+		}
 	}
 
 	wg.Wait()
 
-	for _, g := range tui.MainWidget.Groups {
-		isExist := false
-		for _, f := range tui.MainWidget.Feeds {
-			if f.Title == g.Title {
-				isExist = true
-			}
-		}
-		if !isExist {
-			if err := tui.AddFeedFromGroup(g); err != nil {
+	for index, feed := range tui.MainWidget.Feeds {
+		if feed.IsMerged() {
+			if err := tui.updateFeed(index); err != nil {
 				return err
 			}
 		}
@@ -388,7 +360,7 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 	}
 
 	fileNames := []string{}
-	for _, fp := range myio.DirWalk(getDataPath()[0]) {
+	for _, fp := range myio.DirWalk(getDataPath()) {
 		fileNames = append(fileNames, filepath.Base(fp))
 	}
 
@@ -483,7 +455,7 @@ func NewTui() *Tui {
 	tui := &Tui{
 		App:            tview.NewApplication(),
 		Pages:          pages,
-		MainWidget:     &MainWidget{mainTable, []*fd.Group{}, []*fd.Feed{}},
+		MainWidget:     &MainWidget{mainTable, []*fd.Feed{}},
 		SubWidget:      &SubWidget{subTable, []*fd.Item{}},
 		Description:    descriptionWidget,
 		Info:           infoWidget,
@@ -639,17 +611,41 @@ func (tui *Tui) setAppFunctions() {
 				}()
 			case 1: // merge feeds
 				title := tui.InputWidget.Input.GetText()
-				links := []string{}
-				for _, f := range tui.SelectingFeeds {
-					feedLink, err := f.GetFeedLink()
+				existIndex := -1
+				for i, feed := range tui.MainWidget.Feeds {
+					if feed.IsMerged() && title == feed.Title {
+						existIndex = i
+						break
+					}
+				}
+
+				if existIndex != -1 {
+					for _, f := range tui.SelectingFeeds {
+						if !f.IsMerged() {
+							isNewFeedLink := true
+							feedLink, _ := f.GetFeedLink()
+							for _, url := range tui.MainWidget.Feeds[existIndex].FeedLinks {
+								if feedLink == url {
+									isNewFeedLink = false
+									break
+								}
+							}
+							if isNewFeedLink {
+								tui.MainWidget.Feeds[existIndex].FeedLinks = append(tui.MainWidget.Feeds[existIndex].FeedLinks, feedLink)
+							}
+						}
+					}
+				} else {
+					mergedFeed, err := fd.MergeFeeds(tui.SelectingFeeds, title)
 					if err != nil {
 						panic(err)
 					}
-					links = append(links, feedLink)
+					tui.MainWidget.Feeds = append(tui.MainWidget.Feeds, mergedFeed)
+					if err := tui.MainWidget.SaveFeed(mergedFeed); err != nil {
+						panic(err)
+					}
 				}
-				if err := tui.AddGroup(&fd.Group{Title: title, FeedLinks: links}); err != nil {
-					panic(err)
-				}
+
 				tui.WaitGroup.Add(1)
 				go func() {
 					if err := tui.updateAllFeed(); err != nil {
@@ -658,7 +654,7 @@ func (tui *Tui) setAppFunctions() {
 					tui.App.QueueUpdateDraw(func() {})
 					tui.WaitGroup.Done()
 				}()
-			case 2:
+			case 2: // change feed color
 				number, err := strconv.Atoi(tui.InputWidget.Input.GetText())
 				if err != nil {
 					tui.NotifyError(err.Error())
@@ -681,12 +677,6 @@ func (tui *Tui) setAppFunctions() {
 				selectedFeed := tui.MainWidget.Feeds[row]
 				selectedFeed.Title = title
 				if selectedFeed.IsMerged() {
-					if err := tui.MainWidget.deleteGroupData(selectedFeed.Title); err != nil {
-						panic(err)
-					}
-					if err := tui.MainWidget.SaveGroups(); err != nil {
-						panic(err)
-					}
 				} else {
 					if err := tui.MainWidget.SaveFeed(selectedFeed); err != nil {
 						panic(err)
@@ -729,20 +719,6 @@ func (tui *Tui) setAppFunctions() {
 	})
 }
 
-func uniqSlice(list []string) []string {
-	m := make(map[string]struct{})
-
-	newList := make([]string, 0)
-
-	for _, element := range list {
-		if _, ok := m[element]; !ok {
-			m[element] = struct{}{}
-			newList = append(newList, element)
-		}
-	}
-	return newList
-}
-
 func execCmd(attachStd bool, cmd string, args ...string) error {
 	command := exec.Command(cmd, args...)
 
@@ -764,19 +740,13 @@ func (tui *Tui) Run() error {
 
 	fmt.Print("loading...\r")
 
-	for _, path := range getDataPath() {
-		if !myio.IsDir(path) {
-			if err := os.MkdirAll(path, 0755); err != nil {
-				return err
-			}
+	if !myio.IsDir(getDataPath()) {
+		if err := os.MkdirAll(getDataPath(), 0755); err != nil {
+			return err
 		}
 	}
 
-	if err := tui.MainWidget.LoadFeeds(getDataPath()[0]); err != nil {
-		return err
-	}
-
-	if err := tui.MainWidget.LoadGroups(getDataPath()[1]); err != nil {
+	if err := tui.MainWidget.LoadFeeds(getDataPath()); err != nil {
 		return err
 	}
 
