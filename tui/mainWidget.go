@@ -65,17 +65,17 @@ func (m *MainWidget) LoadFeeds(path string) error {
 
 func (m *MainWidget) DeleteSelection() error {
 	row, _ := m.Table.GetSelection()
-	if err := m.DeleteItem(row); err != nil {
+	if err := m.DeleteFeedFile(row); err != nil {
 		return err
 	}
+  m.DeleteFeed(row)
 	return nil
 }
 
-func (m *MainWidget) DeleteItem(index int) error {
+func (m *MainWidget) DeleteFeedFile(index int) error {
   var hash string
 
 	v := m.Feeds[index]
-	m.deleteFeed(index)
 
 	if v.IsMerged() {
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.Title)))
@@ -91,7 +91,7 @@ func (m *MainWidget) DeleteItem(index int) error {
 	return nil
 }
 
-func (m *MainWidget) deleteFeed(i int) {
+func (m *MainWidget) DeleteFeed(i int) {
 	m.Feeds = append(m.Feeds[:i], m.Feeds[i+1:]...)
 }
 

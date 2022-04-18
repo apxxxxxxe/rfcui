@@ -139,14 +139,14 @@ func parseTime(clock string) time.Time {
 	return tm
 }
 
-func getComfortableColorIndex() int {
-	return int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
-}
-
 func (feed *Feed) SortItems() {
 	sort.Slice(feed.Items, func(i, j int) bool {
 		a := feed.Items[i].PubDate
 		b := feed.Items[j].PubDate
 		return a.After(b)
 	})
+}
+
+func getComfortableColorIndex() int {
+  return int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
 }

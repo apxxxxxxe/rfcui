@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,17 +32,17 @@ var (
 )
 
 type Tui struct {
-	App            *tview.Application
-	Pages          *tview.Pages
-	MainWidget     *MainWidget
-	SubWidget      *SubWidget
-	Description    *tview.TextView
-	Info           *tview.TextView
-	Help           *tview.TextView
-	InputWidget    *InputBox
-	WaitGroup      *sync.WaitGroup
-	SelectingFeeds []*fd.Feed
-	DeleteConfirm  bool
+	App                *tview.Application
+	Pages              *tview.Pages
+	MainWidget         *MainWidget
+	SubWidget          *SubWidget
+	Description        *tview.TextView
+	Info               *tview.TextView
+	Help               *tview.TextView
+	InputWidget        *InputBox
+	WaitGroup          *sync.WaitGroup
+	SelectingFeeds     []*fd.Feed
+	ConfirmationStatus int
 }
 
 func (tui *Tui) SelectFeed() {
@@ -99,11 +100,15 @@ func (tui *Tui) updateFeed(index int) error {
 			for _, item := range feed.Items {
 				item.Color = targetFeed.Color
 			}
-			feed.Color = color
+		} else {
+			targetFeed.Title = feed.Title
+			targetFeed.Color = feed.Color
 		}
-
 		feed.SortItems()
-		tui.MainWidget.Feeds[index] = feed
+
+		targetFeed.Link = feed.Link
+		targetFeed.Description = feed.Description
+		targetFeed.Items = feed.Items
 
 		if err != nil {
 			return ErrGettingFeedFailed
@@ -305,7 +310,7 @@ func (tui *Tui) updateAllFeed() error {
 func (tui *Tui) selectMainRow(row, column int) {
 	var feed *fd.Feed
 	tui.Notify("")
-	tui.DeleteConfirm = false
+	tui.ConfirmationStatus = 0
 	if len(tui.MainWidget.Feeds) > 0 {
 		feed = tui.MainWidget.Feeds[row]
 		tui.setItems(tui.MainWidget.Feeds[row].IsMerged())
@@ -453,17 +458,17 @@ func NewTui() *Tui {
 		AddPage(inputField, inputFlex, true, false)
 
 	tui := &Tui{
-		App:            tview.NewApplication(),
-		Pages:          pages,
-		MainWidget:     &MainWidget{mainTable, []*fd.Feed{}},
-		SubWidget:      &SubWidget{subTable, []*fd.Item{}},
-		Description:    descriptionWidget,
-		Info:           infoWidget,
-		Help:           helpWidget,
-		InputWidget:    &InputBox{inputWidget, 0},
-		WaitGroup:      &sync.WaitGroup{},
-		SelectingFeeds: []*fd.Feed{},
-		DeleteConfirm:  false,
+		App:                tview.NewApplication(),
+		Pages:              pages,
+		MainWidget:         &MainWidget{mainTable, []*fd.Feed{}},
+		SubWidget:          &SubWidget{subTable, []*fd.Item{}},
+		Description:        descriptionWidget,
+		Info:               infoWidget,
+		Help:               helpWidget,
+		InputWidget:        &InputBox{inputWidget, 0},
+		WaitGroup:          &sync.WaitGroup{},
+		SelectingFeeds:     []*fd.Feed{},
+		ConfirmationStatus: 0,
 	}
 
 	tui.setAppFunctions()
@@ -502,6 +507,7 @@ func (tui *Tui) setAppFunctions() {
 				tui.InputWidget.Mode = 2
 				tui.Pages.ShowPage(inputField)
 				tui.App.SetFocus(tui.InputWidget.Input)
+				tui.Notify("input 256 color code, or input \"random\" to randomize color.")
 			case 'm':
 				if len(tui.SelectingFeeds) > 0 {
 					tui.InputWidget.Input.SetTitle("Make a Group")
@@ -513,7 +519,7 @@ func (tui *Tui) setAppFunctions() {
 				}
 				return nil
 			case 'd':
-				if tui.DeleteConfirm {
+				if tui.ConfirmationStatus == 1 {
 					if err := tui.MainWidget.DeleteSelection(); err != nil {
 						if !errors.Is(err, ErrRmFailed) {
 							panic(err)
@@ -521,10 +527,37 @@ func (tui *Tui) setAppFunctions() {
 					}
 					tui.MainWidget.setFeeds()
 					tui.Notify("Deleted.")
-					tui.DeleteConfirm = false
+					tui.ConfirmationStatus = 0
 				} else {
 					tui.Notify("Press d again to delete the feed.")
-					tui.DeleteConfirm = true
+					tui.ConfirmationStatus = 1
+				}
+			case 'u':
+				row, _ := tui.MainWidget.Table.GetSelection()
+				selectedFeed := tui.MainWidget.Feeds[row]
+				if !selectedFeed.IsMerged() {
+					if tui.ConfirmationStatus == 2 {
+						feedLink, _ := selectedFeed.GetFeedLink()
+						feed, err := fd.GetFeedFromURL(feedLink, "")
+						if err != nil {
+							panic(err)
+						}
+						selectedFeed.Title = feed.Title
+
+						if err := tui.MainWidget.SaveFeed(selectedFeed); err != nil {
+							panic(err)
+						}
+
+						tui.MainWidget.setFeeds()
+						tui.Notify("Reset.")
+						tui.ConfirmationStatus = 0
+					} else {
+						tui.Notify("Press u again to reset the feed's title.")
+						tui.ConfirmationStatus = 2
+					}
+				} else {
+					tui.Notify("A mergedFeed cannot be reset.")
+					tui.ConfirmationStatus = 0
 				}
 			}
 		}
@@ -655,32 +688,43 @@ func (tui *Tui) setAppFunctions() {
 					tui.WaitGroup.Done()
 				}()
 			case 2: // change feed color
-				number, err := strconv.Atoi(tui.InputWidget.Input.GetText())
-				if err != nil {
-					tui.NotifyError(err.Error())
+				var (
+					number int
+					err    error
+				)
+				if tui.InputWidget.Input.GetText() == "random" {
+					number = int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
 				} else {
-					if number < 0 {
-						number *= -1
+					number, err = strconv.Atoi(tui.InputWidget.Input.GetText())
+					if err != nil {
+						tui.NotifyError(err.Error())
+						break
 					}
-					number %= len(mycolor.ValidColorCode)
-					row, _ := tui.MainWidget.Table.GetSelection()
-					tui.MainWidget.Feeds[row].Color = number
-					if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row]); err != nil {
-						panic(err)
-					}
-					tui.MainWidget.setFeeds()
-					tui.Notify(fmt.Sprint("set color-number as ", number))
 				}
+				if number < 0 {
+					number *= -1
+				}
+				number %= len(mycolor.ValidColorCode)
+				row, _ := tui.MainWidget.Table.GetSelection()
+				tui.MainWidget.Feeds[row].Color = number
+				for _, item := range tui.MainWidget.Feeds[row].Items {
+					item.Color = number
+				}
+				if err := tui.MainWidget.SaveFeed(tui.MainWidget.Feeds[row]); err != nil {
+					panic(err)
+				}
+				tui.MainWidget.setFeeds()
+				tui.Notify(fmt.Sprint("set color-number as ", number))
 			case 3:
 				title := tui.InputWidget.Input.GetText()
 				row, _ := tui.MainWidget.Table.GetSelection()
 				selectedFeed := tui.MainWidget.Feeds[row]
 				selectedFeed.Title = title
 				if selectedFeed.IsMerged() {
-				} else {
-					if err := tui.MainWidget.SaveFeed(selectedFeed); err != nil {
-						panic(err)
-					}
+					tui.MainWidget.DeleteFeedFile(row)
+				}
+				if err := tui.MainWidget.SaveFeed(selectedFeed); err != nil {
+					panic(err)
 				}
 				tui.MainWidget.setFeeds()
 			}
