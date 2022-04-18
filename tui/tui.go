@@ -714,6 +714,7 @@ func (tui *Tui) setAppFunctions() {
 					panic(err)
 				}
 				tui.MainWidget.setFeeds()
+				tui.setItems(tui.MainWidget.Feeds[row].IsMerged())
 				tui.Notify(fmt.Sprint("set color-number as ", number))
 			case 3:
 				title := tui.InputWidget.Input.GetText()
