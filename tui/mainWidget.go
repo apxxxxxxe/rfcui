@@ -1,13 +1,13 @@
 package tui
 
 import (
-	"bytes"
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	mycolor "github.com/apxxxxxxe/rfcui/color"
 	fd "github.com/apxxxxxxe/rfcui/feed"
@@ -68,19 +68,19 @@ func (m *MainWidget) DeleteSelection() error {
 	if err := m.DeleteFeedFile(row); err != nil {
 		return err
 	}
-  m.DeleteFeed(row)
+	m.DeleteFeed(row)
 	return nil
 }
 
 func (m *MainWidget) DeleteFeedFile(index int) error {
-  var hash string
+	var hash string
 
 	v := m.Feeds[index]
 
 	if v.IsMerged() {
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(v.Title)))
 	} else {
-		
+
 		feedLink, _ := v.GetFeedLink()
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
 	}
@@ -97,9 +97,7 @@ func (m *MainWidget) DeleteFeed(i int) {
 
 func (m *MainWidget) sortFeeds() {
 	sort.Slice(m.Feeds, func(i, j int) bool {
-		a := []byte(m.Feeds[i].Title)
-		b := []byte(m.Feeds[j].Title)
-		return bytes.Compare(a, b) == -1
+		return strings.Compare(m.Feeds[i].Title, m.Feeds[j].Title) == -1
 	})
 	sort.Slice(m.Feeds, func(i, j int) bool {
 		return m.Feeds[i].IsMerged() && !m.Feeds[j].IsMerged()

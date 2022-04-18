@@ -641,6 +641,7 @@ func (tui *Tui) setAppFunctions() {
 		case tcell.KeyESC:
 			tui.InputWidget.Input.SetText("")
 			tui.InputWidget.Input.SetTitle("Input")
+			tui.Notify("")
 			tui.Pages.HidePage(inputField)
 			tui.App.SetFocus(tui.MainWidget.Table)
 			return nil
@@ -736,10 +737,15 @@ func (tui *Tui) setAppFunctions() {
 				title := tui.InputWidget.Input.GetText()
 				row, _ := tui.MainWidget.Table.GetSelection()
 				selectedFeed := tui.MainWidget.Feeds[row]
-				selectedFeed.Title = title
 				if selectedFeed.IsMerged() {
-					tui.MainWidget.DeleteFeedFile(row)
+					// rename the cache file
+					oldFileName := filepath.Join(getDataPath(), fmt.Sprintf("%x", md5.Sum([]byte(selectedFeed.Title))))
+					newFileName := filepath.Join(getDataPath(), fmt.Sprintf("%x", md5.Sum([]byte(title))))
+					if err := os.Rename(oldFileName, newFileName); err != nil {
+						panic(err)
+					}
 				}
+				selectedFeed.Title = title
 				if err := tui.MainWidget.SaveFeed(selectedFeed); err != nil {
 					panic(err)
 				}
