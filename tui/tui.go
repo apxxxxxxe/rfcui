@@ -36,7 +36,7 @@ type Tui struct {
 	Pages              *tview.Pages
 	MainWidget         *MainWidget
 	SubWidget          *SubWidget
-	Description        *tview.TextView
+	Description        *tview.Table
 	Info               *tview.TextView
 	Help               *tview.TextView
 	InputWidget        *InputBox
@@ -162,8 +162,12 @@ func getDataPath() string {
 	return filepath.Join(pwd, dataRoot)
 }
 
-func (tui *Tui) showDescription(text string) {
-	tui.Description.SetText(text)
+func (tui *Tui) showDescription(texts [][]string) {
+	for i, line := range texts {
+		for j, text := range line {
+			tui.Description.SetCellSimple(i, j, text)
+		}
+	}
 }
 
 func (tui *Tui) Notify(text string) {
@@ -317,7 +321,13 @@ func (tui *Tui) selectMainRow(row, column int) {
 	}
 	if tui.App.GetFocus() == tui.MainWidget.Table {
 		if len(tui.MainWidget.Feeds) > 0 {
-			tui.showDescription(fmt.Sprint("Title:       ", feed.Title, "\n", "Link:        ", feed.Link, "\n", "Description: ", feed.Description, "\n", "Colorcode:   ", feed.Color))
+			feedStatus := [][]string{
+				{"Title:", feed.Title},
+				{"Link:", feed.Link},
+				{"Description:", feed.Description},
+				{"Colorcode:", strconv.Itoa(feed.Color)},
+			}
+			tui.showDescription(feedStatus)
 		}
 		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
@@ -348,7 +358,13 @@ func (tui *Tui) selectSubRow(row, column int) {
 					}
 				}
 			}
-			tui.showDescription(fmt.Sprint(feedTitle, item.FormatDate(), "\n", item.Title, "\n", item.Link))
+			itemText := [][]string{
+				{"Feed:", feedTitle},
+				{"Published:", item.FormatDate()},
+				{"Title:", item.Title},
+				{"Link:", item.Link},
+			}
+			tui.showDescription(itemText)
 		}
 		tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 	}
@@ -409,7 +425,7 @@ func NewTui() *Tui {
 	subTable.SetTitle("Items").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	subTable.Select(0, 0).SetSelectable(true, true)
 
-	descriptionWidget := tview.NewTextView()
+	descriptionWidget := tview.NewTable()
 	descriptionWidget.SetTitle("Description").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
 	infoWidget := tview.NewTextView()
