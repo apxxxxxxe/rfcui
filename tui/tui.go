@@ -157,9 +157,9 @@ func (tui *Tui) LoadCells(table *tview.Table, texts []string) {
 }
 
 func getDataPath() string {
-	const dataRoot = "cache"
-	pwd, _ := os.Getwd()
-	return filepath.Join(pwd, dataRoot)
+	const dataRoot = "rfcui"
+	configDir, _ := os.UserConfigDir()
+	return filepath.Join(configDir, dataRoot)
 }
 
 func (tui *Tui) showDescription(texts [][]string) {
@@ -627,8 +627,7 @@ func (tui *Tui) setAppFunctions() {
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'h':
-				tui.Pages.ShowPage(mainPage)
-				tui.Pages.HidePage(descriptionPage)
+				tui.Pages.SwitchToPage(mainPage)
 				tui.App.SetFocus(tui.SubWidget.Table)
 				return nil
 			}
@@ -641,9 +640,9 @@ func (tui *Tui) setAppFunctions() {
 		case tcell.KeyESC:
 			tui.InputWidget.Input.SetText("")
 			tui.InputWidget.Input.SetTitle("Input")
-			tui.Notify("")
 			tui.Pages.HidePage(inputField)
 			tui.App.SetFocus(tui.MainWidget.Table)
+			tui.Notify("")
 			return nil
 		case tcell.KeyEnter:
 			switch tui.InputWidget.Mode {
