@@ -29,6 +29,7 @@ const (
 var (
 	ErrGettingFeedFailed = errors.New("failed to get feed")
 	ErrRmFailed          = errors.New("faled to remove files or dirs")
+	cachePath            = filepath.Join(getDataPath(), "cache")
 )
 
 type Tui struct {
@@ -335,38 +336,41 @@ func (tui *Tui) selectMainRow(row, column int) {
 
 func (tui *Tui) selectSubRow(row, column int) {
 	var (
-		item      *fd.Item
-		feedTitle = ""
+		item       *fd.Item
+		parentFeed *fd.Feed
+		feedTitle  string
 	)
+
 	tui.Notify("")
-	if len(tui.SubWidget.Items) > 0 {
-		item = tui.SubWidget.Items[row]
+	tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
+
+	if len(tui.SubWidget.Items) == 0 || len(tui.MainWidget.Feeds) == 0 {
+		return
 	}
 
+	item = tui.SubWidget.Items[row]
+
 	index, _ := tui.MainWidget.Table.GetSelection()
-	parentFeed := tui.MainWidget.Feeds[index]
+	parentFeed = tui.MainWidget.Feeds[index]
 
 	if tui.App.GetFocus() == tui.SubWidget.Table {
-		if len(tui.SubWidget.Items) > 0 {
-			if parentFeed.IsMerged() {
-				for _, feed := range tui.MainWidget.Feeds {
-					feedLink, err := feed.GetFeedLink()
-					if err != fd.ErrGetFeedLinkFailed {
-						if item.Belong == feedLink {
-							feedTitle = fmt.Sprint(feed.Title, "\n")
-						}
+		if parentFeed.IsMerged() {
+			for _, feed := range tui.MainWidget.Feeds {
+				feedLink, err := feed.GetFeedLink()
+				if err != fd.ErrGetFeedLinkFailed {
+					if item.Belong == feedLink {
+						feedTitle = fmt.Sprint(feed.Title, "\n")
 					}
 				}
 			}
-			itemText := [][]string{
-				{"Feed:", feedTitle},
-				{"Published:", item.FormatDate()},
-				{"Title:", item.Title},
-				{"Link:", item.Link},
-			}
-			tui.showDescription(itemText)
 		}
-		tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
+		itemText := [][]string{
+			{"Feed:", feedTitle},
+			{"Published:", item.FormatDate()},
+			{"Title:", item.Title},
+			{"Link:", item.Link},
+		}
+		tui.showDescription(itemText)
 	}
 }
 
@@ -803,20 +807,21 @@ func execCmd(attachStd bool, cmd string, args ...string) error {
 }
 
 func (tui *Tui) Run() error {
-
 	fmt.Print("loading...\r")
 
-	if !myio.IsDir(getDataPath()) {
-		if err := os.MkdirAll(getDataPath(), 0755); err != nil {
+	if !myio.IsDir(cachePath) {
+		if err := os.MkdirAll(cachePath, 0755); err != nil {
 			return err
 		}
 	}
 
-	if err := tui.MainWidget.LoadFeeds(getDataPath()); err != nil {
+	if err := tui.MainWidget.LoadFeeds(cachePath); err != nil {
 		return err
 	}
 
-	if err := tui.AddFeedsFromURL("list.txt"); err != nil {
+	listPath := filepath.Join(getDataPath(), "list.txt")
+	fmt.Println(listPath)
+	if err := tui.AddFeedsFromURL(listPath); err != nil {
 		return err
 	}
 

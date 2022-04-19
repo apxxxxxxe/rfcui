@@ -36,7 +36,7 @@ func (m *MainWidget) SaveFeed(f *fd.Feed) error {
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
 	}
 
-	if err := myio.SaveBytes(b, filepath.Join(getDataPath(), hash)); err != nil {
+	if err := myio.SaveBytes(b, filepath.Join(cachePath, hash)); err != nil {
 		return err
 	}
 
@@ -85,7 +85,7 @@ func (m *MainWidget) DeleteFeedFile(index int) error {
 		hash = fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
 	}
 
-	if err := os.Remove(filepath.Join(getDataPath(), hash)); err != nil {
+	if err := os.Remove(filepath.Join(cachePath, hash)); err != nil {
 		return ErrRmFailed
 	}
 	return nil

@@ -7,32 +7,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
-func formatFilename(name string) string {
-	characters := [][]string{
-		{"\\", "￥"},
-		{":", "："},
-		{"*", "＊"},
-		{"?", "？"},
-		{"<", "＜"},
-		{">", "＞"},
-		{"|", "｜"},
-		{"/", "／"},
-		{" ", ""},
-	}
-
-	result := name
-	for _, c := range characters {
-		result = strings.ReplaceAll(result, c[0], c[1])
-	}
-	return result
-}
-
 func IsFile(filename string) bool {
-	_, err := os.Stat(formatFilename(filename))
-	return err == nil
+	_, err := os.OpenFile(filename, os.O_RDONLY, 0)
+	return !os.IsNotExist(err)
 }
 
 func IsDir(path string) bool {
@@ -77,8 +56,7 @@ func DirWalk(dir string) []string {
 }
 
 func GetLines(path string) (int, []string, error) {
-	pwd, _ := os.Getwd()
-	fp, err := os.Open(filepath.Join(pwd, path))
+	fp, err := os.Open(path)
 	if err != nil {
 		return 0, nil, err
 	}
