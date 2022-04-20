@@ -24,6 +24,7 @@ const (
 	inputField      = "InputPopup"
 	descriptionPage = "descriptionPage"
 	mainPage        = "MainPage"
+	modalPage       = "modalPage"
 )
 
 var (
@@ -44,6 +45,7 @@ type Tui struct {
 	WaitGroup          *sync.WaitGroup
 	SelectingFeeds     []*fd.Feed
 	ConfirmationStatus int
+	Modal              *tview.Modal
 }
 
 func (tui *Tui) SelectFeed() {
@@ -472,10 +474,15 @@ func NewTui() *Tui {
 			AddItem(nil, 0, 1, false), 40, 1, false).
 		AddItem(nil, 0, 1, false)
 
+	modal := tview.NewModal()
+	modal.SetBorder(true).SetTitleAlign(0)
+	modal.SetBackgroundColor(tcell.ColorBlack)
+
 	pages := tview.NewPages().
 		AddPage(mainPage, mainFlex, true, true).
 		AddPage(descriptionPage, descriptionFlex, true, false).
-		AddPage(inputField, inputFlex, true, false)
+		AddPage(inputField, inputFlex, true, false).
+		AddPage(modalPage, modal, true, false)
 
 	tui := &Tui{
 		App:                tview.NewApplication(),
@@ -489,6 +496,7 @@ func NewTui() *Tui {
 		WaitGroup:          &sync.WaitGroup{},
 		SelectingFeeds:     []*fd.Feed{},
 		ConfirmationStatus: 0,
+		Modal:              modal,
 	}
 
 	tui.setAppFunctions()
@@ -500,7 +508,6 @@ func (tui *Tui) setAppFunctions() {
 	tui.MainWidget.Table.SetSelectionChangedFunc(func(row, column int) {
 		tui.selectMainRow(row, column)
 	})
-
 	tui.MainWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyRune:
@@ -579,6 +586,23 @@ func (tui *Tui) setAppFunctions() {
 					tui.Notify("A mergedFeed cannot be reset.")
 					tui.ConfirmationStatus = 0
 				}
+			case 'x':
+				texts := []string{
+					"c: recolor selecting feed",
+					"d: delete selecting feed",
+					"l: move to SubColumn",
+					"r: rename selecting feed",
+					"R: reload feeds",
+					"q: Exit rfcui",
+				}
+				text := ""
+				for _, line := range texts {
+					text += line + "\n"
+				}
+				tui.Modal.SetTitle("keymaps")
+				tui.Modal.SetText(text)
+				tui.Pages.ShowPage(modalPage)
+				tui.App.SetFocus(tui.Modal)
 			}
 		}
 		return event
@@ -621,6 +645,20 @@ func (tui *Tui) setAppFunctions() {
 						}
 					}
 					return nil
+				case 'x':
+					texts := []string{
+						"h: move to DescriptionColumn",
+						"l: move to MainColumn",
+						"q: Exit rfcui",
+					}
+					text := ""
+					for _, line := range texts {
+						text += line + "\n"
+					}
+					tui.Modal.SetTitle("keymaps")
+					tui.Modal.SetText(text)
+					tui.Pages.ShowPage(modalPage)
+					tui.App.SetFocus(tui.Modal)
 				}
 			}
 			return event
@@ -761,6 +799,13 @@ func (tui *Tui) setAppFunctions() {
 			tui.App.SetFocus(tui.MainWidget.Table)
 			return nil
 		}
+		return event
+	})
+
+	tui.Modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		tui.Pages.HidePage(modalPage)
+		tui.Modal.SetText("")
+		tui.App.SetFocus(tui.MainWidget.Table)
 		return event
 	})
 
