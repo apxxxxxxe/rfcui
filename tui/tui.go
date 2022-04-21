@@ -865,7 +865,6 @@ func (tui *Tui) Run() error {
 	}
 
 	listPath := filepath.Join(getDataPath(), "list.txt")
-	fmt.Println(listPath)
 	if err := tui.AddFeedsFromURL(listPath); err != nil {
 		return err
 	}
