@@ -824,6 +824,7 @@ func (tui *Tui) setAppFunctions() {
 				tui.InputWidget.Mode = 0
 				tui.Pages.ShowPage(inputField)
 				tui.App.SetFocus(tui.InputWidget.Input)
+        tui.Notify("Enter a feed URL or a command to output feed as xml.")
 				return nil
 			case 'q':
 				tui.App.Stop()

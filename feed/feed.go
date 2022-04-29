@@ -2,7 +2,10 @@ package feed
 
 import (
 	"math/rand"
+	"net/url"
+	"os/exec"
 	"sort"
+	"strings"
 	"time"
 
 	mycolor "github.com/apxxxxxxe/rfcui/color"
@@ -22,13 +25,36 @@ type Feed struct {
 	Items       []*Item
 }
 
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
 func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
+	var (
+		parsedFeed *gofeed.Feed
+		feed       *Feed
+		err        error
+	)
 	parser := gofeed.NewParser()
 
-	parsedFeed, err := parser.ParseURL(url)
-	if err != nil {
-		return nil, errors.WithStack(err)
+	if IsUrl(url) {
+		parsedFeed, err = parser.ParseURL(url)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+	} else {
+		cmd := strings.Split(strings.TrimSpace(url), " ")
+		output, err := exec.Command(cmd[0], cmd[1:]...).Output()
+		if err != nil {
+			return nil, err
+		}
+		parsedFeed, err = parser.ParseString(string(output))
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 	}
+
 	color := getComfortableColorIndex()
 
 	var title string
@@ -38,7 +64,14 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 		title = parsedFeed.Title
 	}
 
-	feed := &Feed{title, color, parsedFeed.Description, parsedFeed.Link, []string{url}, []*Item{}}
+	feed = &Feed{
+		Title:       title,
+		Color:       color,
+		Description: parsedFeed.Description,
+		Link:        parsedFeed.Link,
+		FeedLinks:   []string{url},
+		Items:       []*Item{},
+	}
 
 	for _, item := range parsedFeed.Items {
 		feedLink, err := feed.GetFeedLink()
@@ -46,7 +79,14 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 			return nil, err
 		}
 		if time.Now().After(parseTime(item.Published)) {
-			feed.Items = append(feed.Items, &Item{feedLink, feed.Color, item.Title, item.Description, parseTime(item.Published), item.Link})
+			feed.Items = append(feed.Items, &Item{
+				Belong:      feedLink,
+				Color:       feed.Color,
+				Title:       item.Title,
+				Description: item.Description,
+				PubDate:     parseTime(item.Published),
+				Link:        item.Link,
+			})
 		}
 	}
 
@@ -148,5 +188,5 @@ func (feed *Feed) SortItems() {
 }
 
 func getComfortableColorIndex() int {
-  return int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
+	return int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
 }
