@@ -38,7 +38,7 @@ type Tui struct {
 	Pages              *tview.Pages
 	MainWidget         *MainWidget
 	SubWidget          *SubWidget
-	Description        *tview.Table
+	Description        *tview.TextView
 	Info               *tview.TextView
 	Help               *tview.TextView
 	InputWidget        *InputBox
@@ -166,11 +166,14 @@ func getDataPath() string {
 }
 
 func (tui *Tui) showDescription(texts [][]string) {
-	for i, line := range texts {
-		for j, text := range line {
-			tui.Description.SetCellSimple(i, j, text)
+	var s string
+	for _, line := range texts {
+		for _, text := range line {
+			s += text + " "
 		}
+		s += "\n"
 	}
+	tui.Description.SetText(s)
 }
 
 func (tui *Tui) Notify(text string) {
@@ -431,7 +434,7 @@ func NewTui() *Tui {
 	subTable.SetTitle("Items").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	subTable.Select(0, 0).SetSelectable(true, true)
 
-	descriptionWidget := tview.NewTable()
+	descriptionWidget := tview.NewTextView()
 	descriptionWidget.SetTitle("Description").SetBorder(true).SetTitleAlign(tview.AlignLeft)
 
 	infoWidget := tview.NewTextView()
@@ -824,7 +827,7 @@ func (tui *Tui) setAppFunctions() {
 				tui.InputWidget.Mode = 0
 				tui.Pages.ShowPage(inputField)
 				tui.App.SetFocus(tui.InputWidget.Input)
-        tui.Notify("Enter a feed URL or a command to output feed as xml.")
+				tui.Notify("Enter a feed URL or a command to output feed as xml.")
 				return nil
 			case 'q':
 				tui.App.Stop()
