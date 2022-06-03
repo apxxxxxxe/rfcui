@@ -49,7 +49,7 @@ type Tui struct {
 	Modal              *tview.Modal
 }
 
-func (tui *Tui) SelectFeed() {// {{{
+func (tui *Tui) SelectFeed() {
 	const defaultColor = tcell.ColorBlack
 	const selectedColor = tcell.ColorWhite
 
@@ -67,9 +67,9 @@ func (tui *Tui) SelectFeed() {// {{{
 			}
 		}
 	}
-}// }}}
+}
 
-func (tui *Tui) updateFeed(index int) error {// {{{
+func (tui *Tui) updateFeed(index int) error {
 	targetFeed := tui.FeedWidget.Feeds[index]
 
 	if targetFeed.IsMerged() {
@@ -119,9 +119,9 @@ func (tui *Tui) updateFeed(index int) error {// {{{
 		}
 	}
 	return nil
-}// }}}
+}
 
-func (tui *Tui) AddFeedFromURL(url string) error {// {{{
+func (tui *Tui) AddFeedFromURL(url string) error {
 	f, err := fd.GetFeedFromURL(url, "")
 	if err != nil {
 		return err
@@ -151,22 +151,22 @@ func (tui *Tui) AddFeedFromURL(url string) error {// {{{
 	tui.FeedWidget.setFeeds()
 	return nil
 
-}// }}}
+}
 
-func (tui *Tui) LoadCells(table *tview.Table, texts []string) {// {{{
+func (tui *Tui) LoadCells(table *tview.Table, texts []string) {
 	table.Clear()
 	for i, text := range texts {
 		table.SetCell(i, 0, tview.NewTableCell(text))
 	}
-}// }}}
+}
 
-func getDataPath() string {// {{{
+func getDataPath() string {
 	const dataRoot = "rfcui"
 	configDir, _ := os.UserConfigDir()
 	return filepath.Join(configDir, dataRoot)
-}// }}}
+}
 
-func (tui *Tui) showDescription(texts [][]string) {// {{{
+func (tui *Tui) showDescription(texts [][]string) {
 	var s string
 	for _, line := range texts {
 		for _, text := range line {
@@ -175,22 +175,22 @@ func (tui *Tui) showDescription(texts [][]string) {// {{{
 		s += "\n"
 	}
 	tui.Description.SetText(s)
-}// }}}
+}
 
-func (tui *Tui) Notify(text string) {// {{{
+func (tui *Tui) Notify(text string) {
 	tui.Info.SetText(text).SetTextColor(tcell.ColorReset)
-}// }}}
+}
 
-func (tui *Tui) NotifyError(text string) {// {{{
+func (tui *Tui) NotifyError(text string) {
 	text = fmt.Sprint("error:\n", text)
 	tui.Info.SetText(text).SetTextColor(tcell.ColorRed)
-}// }}}
+}
 
-func (tui *Tui) UpdateHelp(text string) {// {{{
+func (tui *Tui) UpdateHelp(text string) {
 	tui.Help.SetText(text)
-}// }}}
+}
 
-func (tui *Tui) RefreshTui() {// {{{
+func (tui *Tui) RefreshTui() {
 	focus := tui.App.GetFocus()
 	if focus == tui.FeedWidget.Table {
 		row, column := tui.FeedWidget.Table.GetSelection()
@@ -199,9 +199,9 @@ func (tui *Tui) RefreshTui() {// {{{
 		row, column := tui.SubWidget.Table.GetSelection()
 		tui.selectSubRow(row, column)
 	}
-}// }}}
+}
 
-func (tui *Tui) setItems(paintColor bool) {// {{{
+func (tui *Tui) setItems(paintColor bool) {
 	row, _ := tui.FeedWidget.Table.GetSelection()
 	items := tui.FeedWidget.Feeds[row].Items
 
@@ -218,9 +218,9 @@ func (tui *Tui) setItems(paintColor bool) {// {{{
 	if tui.SubWidget.Table.GetRowCount() != 0 {
 		tui.SubWidget.Table.Select(0, 0).ScrollToBeginning()
 	}
-}// }}}
+}
 
-func (tui *Tui) GetTodaysFeeds() error {// {{{
+func (tui *Tui) GetTodaysFeeds() error {
 	const feedname = "Today's Items"
 
 	targetfeed, err := fd.MergeFeeds(tui.FeedWidget.Feeds, feedname)
@@ -252,9 +252,9 @@ func (tui *Tui) GetTodaysFeeds() error {// {{{
 	}
 	tui.FeedWidget.setFeeds()
 	return nil
-}// }}}
+}
 
-func getInvalidFeed(url string, err error) *fd.Feed {// {{{
+func getInvalidFeed(url string, err error) *fd.Feed {
 	return &fd.Feed{
 		Title:       "failed to retrieve: " + url,
 		Color:       1, // Red
@@ -263,9 +263,9 @@ func getInvalidFeed(url string, err error) *fd.Feed {// {{{
 		FeedLinks:   []string{url},
 		Items:       []*fd.Item{},
 	}
-}// }}}
+}
 
-func (tui *Tui) updateAllFeed() error {// {{{
+func (tui *Tui) updateAllFeed() error {
 	length := len(tui.FeedWidget.Feeds)
 	doneCount := 0
 
@@ -316,9 +316,9 @@ func (tui *Tui) updateAllFeed() error {// {{{
 	tui.RefreshTui()
 
 	return nil
-}// }}}
+}
 
-func (tui *Tui) selectMainRow(row, column int) {// {{{
+func (tui *Tui) selectMainRow(row, column int) {
 	var feed *fd.Feed
 	tui.Notify("")
 	tui.ConfirmationStatus = 0
@@ -338,9 +338,9 @@ func (tui *Tui) selectMainRow(row, column int) {// {{{
 		}
 		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
-}// }}}
+}
 
-func (tui *Tui) selectSubRow(row, column int) {// {{{
+func (tui *Tui) selectSubRow(row, column int) {
 	var (
 		item       *fd.Item
 		parentFeed *fd.Feed
@@ -378,9 +378,9 @@ func (tui *Tui) selectSubRow(row, column int) {// {{{
 		}
 		tui.showDescription(itemText)
 	}
-}// }}}
+}
 
-func (tui *Tui) AddFeedsFromURL(path string) error {// {{{
+func (tui *Tui) AddFeedsFromURL(path string) error {
 	if !myio.IsFile(path) {
 		return nil
 	}
@@ -423,9 +423,9 @@ func (tui *Tui) AddFeedsFromURL(path string) error {// {{{
 	tui.FeedWidget.setFeeds()
 
 	return nil
-}// }}}
+}
 
-func NewTui() *Tui {// {{{
+func NewTui() *Tui {
 
 	groupTable := tview.NewTable()
 	groupTable.SetTitle("Groups").SetBorder(true).SetTitleAlign(tview.AlignLeft)
@@ -511,9 +511,9 @@ func NewTui() *Tui {// {{{
 	tui.setAppFunctions()
 
 	return tui
-}// }}}
+}
 
-func (tui *Tui) setAppFunctions() {// {{{
+func (tui *Tui) setAppFunctions() {
 	tui.FeedWidget.Table.SetSelectionChangedFunc(func(row, column int) {
 		tui.selectMainRow(row, column)
 	})
@@ -842,9 +842,9 @@ func (tui *Tui) setAppFunctions() {// {{{
 		}
 		return event
 	})
-}// }}}
+}
 
-func execCmd(attachStd bool, cmd string, args ...string) error {// {{{
+func execCmd(attachStd bool, cmd string, args ...string) error {
 	command := exec.Command(cmd, args...)
 
 	if attachStd {
@@ -859,9 +859,9 @@ func execCmd(attachStd bool, cmd string, args ...string) error {// {{{
 	}()
 
 	return command.Run()
-}// }}}
+}
 
-func (tui *Tui) Run() error {// {{{
+func (tui *Tui) Run() error {
 	fmt.Print("loading...\r")
 
 	if !myio.IsDir(cachePath) {
@@ -895,4 +895,4 @@ func (tui *Tui) Run() error {// {{{
 	}
 
 	return nil
-}// }}}
+}

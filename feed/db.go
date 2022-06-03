@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 )
 
-func EncodeFeed(feeds *Feed) ([]byte, error) {// {{{
+func EncodeFeed(feeds *Feed) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(feeds)
@@ -13,11 +13,11 @@ func EncodeFeed(feeds *Feed) ([]byte, error) {// {{{
 		return nil, err
 	}
 	return buf.Bytes(), nil
-}// }}}
+}
 
-func DecodeFeed(data []byte) *Feed {// {{{
+func DecodeFeed(data []byte) *Feed {
 	var feeds Feed
 	buf := bytes.NewBuffer(data)
 	_ = gob.NewDecoder(buf).Decode(&feeds)
 	return &feeds
-}// }}}
+}
