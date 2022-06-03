@@ -73,6 +73,11 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 		Items:       []*Item{},
 	}
 
+  jst, err := time.LoadLocation("Asia/Tokyo")
+  if err != nil {
+    return nil,err
+  }
+
 	for _, item := range parsedFeed.Items {
 		feedLink, err := feed.GetFeedLink()
 		if err != nil {
@@ -84,7 +89,7 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 				Color:       feed.Color,
 				Title:       item.Title,
 				Description: item.Description,
-				PubDate:     parseTime(item.Published),
+				PubDate:     parseTime(item.Published).In(jst),
 				Link:        item.Link,
 			})
 		}
@@ -142,7 +147,7 @@ func parseTime(clock string) time.Time {
 		finalFormat = ISO8601
 		formats     = []string{
 			ISO8601,
-      ISO8601Z,
+			ISO8601Z,
 			time.ANSIC,
 			time.UnixDate,
 			time.RubyDate,
