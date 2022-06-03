@@ -133,12 +133,16 @@ func MergeFeeds(feeds []*Feed, title string) (*Feed, error) {
 }
 
 func parseTime(clock string) time.Time {
-	const ISO8601 = "2006-01-02T15:04:05+09:00"
+	const (
+		ISO8601  = "2006-01-02T15:04:05+09:00"
+		ISO8601Z = "2006-01-02T15:04:05Z"
+	)
 	var (
 		tm          time.Time
 		finalFormat = ISO8601
 		formats     = []string{
 			ISO8601,
+      ISO8601Z,
 			time.ANSIC,
 			time.UnixDate,
 			time.RubyDate,
