@@ -25,12 +25,12 @@ type Feed struct {
 	Items       []*Item
 }
 
-func IsUrl(str string) bool {
+func IsUrl(str string) bool {// {{{
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
-}
+}// }}}
 
-func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
+func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {// {{{
 	var (
 		parsedFeed *gofeed.Feed
 		feed       *Feed
@@ -98,20 +98,20 @@ func GetFeedFromURL(url string, forcedTitle string) (*Feed, error) {
 	feed.SortItems()
 
 	return feed, nil
-}
+}// }}}
 
-func (feed *Feed) GetFeedLink() (string, error) {
+func (feed *Feed) GetFeedLink() (string, error) {// {{{
 	if feed.IsMerged() {
 		return "", ErrGetFeedLinkFailed
 	}
 	return feed.FeedLinks[0], nil
-}
+}// }}}
 
-func (feed *Feed) IsMerged() bool {
+func (feed *Feed) IsMerged() bool {// {{{
 	return len(feed.FeedLinks) > 1
-}
+}// }}}
 
-func MergeFeeds(feeds []*Feed, title string) (*Feed, error) {
+func MergeFeeds(feeds []*Feed, title string) (*Feed, error) {// {{{
 	mergedItems := []*Item{}
 	mergedFeedlinks := []string{}
 
@@ -135,9 +135,9 @@ func MergeFeeds(feeds []*Feed, title string) (*Feed, error) {
 	resultFeed.SortItems()
 
 	return resultFeed, nil
-}
+}// }}}
 
-func parseTime(clock string) time.Time {
+func parseTime(clock string) time.Time {// {{{
 	const (
 		ISO8601  = "2006-01-02T15:04:05+09:00"
 		ISO8601Z = "2006-01-02T15:04:05Z"
@@ -186,16 +186,16 @@ func parseTime(clock string) time.Time {
 	tm, _ = time.Parse(finalFormat, clock)
 
 	return tm
-}
+}// }}}
 
-func (feed *Feed) SortItems() {
+func (feed *Feed) SortItems() {// {{{
 	sort.Slice(feed.Items, func(i, j int) bool {
 		a := feed.Items[i].PubDate
 		b := feed.Items[j].PubDate
 		return a.After(b)
 	})
-}
+}// }}}
 
-func getComfortableColorIndex() int {
+func getComfortableColorIndex() int {// {{{
 	return int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
-}
+}// }}}

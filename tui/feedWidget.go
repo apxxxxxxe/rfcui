@@ -16,12 +16,12 @@ import (
 	"github.com/rivo/tview"
 )
 
-type MainWidget struct {
+type FeedWidget struct {
 	Table *tview.Table
 	Feeds []*fd.Feed
 }
 
-func (m *MainWidget) SaveFeed(f *fd.Feed) error {
+func (m *FeedWidget) SaveFeed(f *fd.Feed) error {// {{{
 	var hash string
 
 	b, err := fd.EncodeFeed(f)
@@ -41,18 +41,18 @@ func (m *MainWidget) SaveFeed(f *fd.Feed) error {
 	}
 
 	return nil
-}
+}// }}}
 
-func (m *MainWidget) SaveFeeds() error {
+func (m *FeedWidget) SaveFeeds() error {// {{{
 	for _, f := range m.Feeds {
 		if err := m.SaveFeed(f); err != nil {
 			return err
 		}
 	}
 	return nil
-}
+}// }}}
 
-func (m *MainWidget) LoadFeeds(path string) error {
+func (m *FeedWidget) LoadFeeds(path string) error {// {{{
 	for _, file := range myio.DirWalk(path) {
 		b, err := ioutil.ReadFile(file)
 		if err != nil {
@@ -61,18 +61,18 @@ func (m *MainWidget) LoadFeeds(path string) error {
 		m.Feeds = append(m.Feeds, fd.DecodeFeed(b))
 	}
 	return nil
-}
+}// }}}
 
-func (m *MainWidget) DeleteSelection() error {
+func (m *FeedWidget) DeleteSelection() error {// {{{
 	row, _ := m.Table.GetSelection()
 	if err := m.DeleteFeedFile(row); err != nil {
 		return err
 	}
 	m.DeleteFeed(row)
 	return nil
-}
+}// }}}
 
-func (m *MainWidget) DeleteFeedFile(index int) error {
+func (m *FeedWidget) DeleteFeedFile(index int) error {// {{{
 	var hash string
 
 	v := m.Feeds[index]
@@ -89,22 +89,22 @@ func (m *MainWidget) DeleteFeedFile(index int) error {
 		return ErrRmFailed
 	}
 	return nil
-}
+}// }}}
 
-func (m *MainWidget) DeleteFeed(i int) {
+func (m *FeedWidget) DeleteFeed(i int) {// {{{
 	m.Feeds = append(m.Feeds[:i], m.Feeds[i+1:]...)
-}
+}// }}}
 
-func (m *MainWidget) sortFeeds() {
+func (m *FeedWidget) sortFeeds() {// {{{
 	sort.Slice(m.Feeds, func(i, j int) bool {
 		return strings.Compare(m.Feeds[i].Title, m.Feeds[j].Title) == -1
 	})
 	sort.Slice(m.Feeds, func(i, j int) bool {
 		return m.Feeds[i].IsMerged() && !m.Feeds[j].IsMerged()
 	})
-}
+}// }}}
 
-func (m *MainWidget) AddMergedFeed(feeds []*fd.Feed, title string) error {
+func (m *FeedWidget) AddMergedFeed(feeds []*fd.Feed, title string) error {// {{{
 	f, err := fd.MergeFeeds(feeds, title)
 	if err != nil {
 		return err
@@ -114,9 +114,9 @@ func (m *MainWidget) AddMergedFeed(feeds []*fd.Feed, title string) error {
 		return err
 	}
 	return nil
-}
+}// }}}
 
-func (m *MainWidget) setFeeds() {
+func (m *FeedWidget) setFeeds() {// {{{
 	m.sortFeeds()
 	table := m.Table.Clear()
 	for i, feed := range m.Feeds {
@@ -134,4 +134,4 @@ func (m *MainWidget) setFeeds() {
 	if max < row {
 		m.Table.Select(max, 0).ScrollToBeginning()
 	}
-}
+}// }}}

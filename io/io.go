@@ -9,21 +9,21 @@ import (
 	"path/filepath"
 )
 
-func IsFile(filename string) bool {
+func IsFile(filename string) bool {// {{{
 	_, err := os.OpenFile(filename, os.O_RDONLY, 0)
 	return !os.IsNotExist(err)
-}
+}// }}}
 
-func IsDir(path string) bool {
+func IsDir(path string) bool {// {{{
 	info, err := os.Stat(path)
 	os.IsNotExist(err)
 	if err != nil || !info.IsDir() {
 		return false
 	}
 	return true
-}
+}// }}}
 
-func SaveBytes(data []byte, path string) error {
+func SaveBytes(data []byte, path string) error {// {{{
 	file, err := os.Create(path)
 	if err != nil {
 		panic(err)
@@ -35,9 +35,9 @@ func SaveBytes(data []byte, path string) error {
 		panic(err)
 	}
 	return nil
-}
+}// }}}
 
-func DirWalk(dir string) []string {
+func DirWalk(dir string) []string {// {{{
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(err)
@@ -53,9 +53,9 @@ func DirWalk(dir string) []string {
 	}
 
 	return paths
-}
+}// }}}
 
-func GetLines(path string) (int, []string, error) {
+func GetLines(path string) (int, []string, error) {// {{{
 	fp, err := os.Open(path)
 	if err != nil {
 		return 0, nil, err
@@ -73,9 +73,9 @@ func GetLines(path string) (int, []string, error) {
 		return 0, nil, err
 	}
 	return lineCount, lines, nil
-}
+}// }}}
 
-func WriteLine(path string, line string) {
+func WriteLine(path string, line string) {// {{{
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatal(err)
@@ -83,9 +83,9 @@ func WriteLine(path string, line string) {
 	defer file.Close()
 
 	fmt.Fprintln(file, line)
-}
+}// }}}
 
-func DeleteLine(path string, line string) error {
+func DeleteLine(path string, line string) error {// {{{
 	_, lines, err := GetLines(path)
 	if err != nil {
 		return err
@@ -100,9 +100,9 @@ func DeleteLine(path string, line string) error {
 	}
 
 	return nil
-}
+}// }}}
 
-func RemoveDuplicate(arr []string) []string {
+func RemoveDuplicate(arr []string) []string {// {{{
 	results := make([]string, 0, len(arr))
 	encountered := map[string]bool{}
 	for i := 0; i < len(arr); i++ {
@@ -112,4 +112,4 @@ func RemoveDuplicate(arr []string) []string {
 		}
 	}
 	return results
-}
+}// }}}
