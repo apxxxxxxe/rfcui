@@ -686,13 +686,13 @@ func (tui *Tui) setAppFunctions() {
 				tui.App.SetFocus(tui.InputWidget.Input)
 				tui.Notify("input 256 color code, or input \"random\" to randomize color.")
 			case 'm':
-				if len(tui.SelectingFeeds) > 0 {
+				if len(tui.SelectingFeeds) > 1 {
 					tui.InputWidget.Input.SetTitle("Make a Group")
 					tui.InputWidget.Mode = 1
 					tui.Pages.ShowPage(inputField)
 					tui.App.SetFocus(tui.InputWidget.Input)
 				} else {
-					tui.Notify("Select feeds with the s key to make a group.")
+					tui.Notify("Select at least 2 feeds with the v key to make a group.")
 				}
 				return nil
 			case 'd':
