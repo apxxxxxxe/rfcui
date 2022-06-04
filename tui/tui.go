@@ -22,16 +22,19 @@ import (
 )
 
 const (
-	inputField      = "InputPopup"
-	descriptionPage = "descriptionPage"
-	mainPage        = "MainPage"
-	modalPage       = "modalPage"
+	inputField                = "InputPopup"
+	descriptionPage           = "descriptionPage"
+	mainPage                  = "MainPage"
+	modalPage                 = "modalPage"
+	defaultConfirmationStatus = '0'
 )
 
 var (
 	ErrGettingFeedFailed = errors.New("failed to get feed")
 	ErrRmFailed          = errors.New("faled to remove files or dirs")
 	cachePath            = filepath.Join(getDataPath(), "cache")
+	exportListPath       = filepath.Join(getDataPath(), "list_export.txt")
+	importListPath       = filepath.Join(getDataPath(), "list.txt")
 )
 
 type Tui struct {
@@ -46,7 +49,7 @@ type Tui struct {
 	InputWidget        *InputBox
 	WaitGroup          *sync.WaitGroup
 	SelectingFeeds     []*fd.Feed
-	ConfirmationStatus int
+	ConfirmationStatus rune
 	LastSelectedWidget tview.Primitive
 	Modal              *tview.Modal
 }
@@ -349,7 +352,7 @@ func (tui *Tui) updateAllFeed() error {
 func (tui *Tui) selectGroupRow(row, column int) {
 	var feed *fd.Feed
 	tui.Notify("")
-	tui.ConfirmationStatus = 0
+	tui.ConfirmationStatus = defaultConfirmationStatus
 	if len(tui.GroupWidget.Groups) > 0 {
 		feed = tui.GroupWidget.Groups[row]
 		tui.setItems(true, tui.LastSelectedWidget == tui.GroupWidget.Table)
@@ -371,7 +374,7 @@ func (tui *Tui) selectGroupRow(row, column int) {
 func (tui *Tui) selectFeedRow(row, column int) {
 	var feed *fd.Feed
 	tui.Notify("")
-	tui.ConfirmationStatus = 0
+	tui.ConfirmationStatus = defaultConfirmationStatus
 	if len(tui.FeedWidget.Feeds) > 0 {
 		feed = tui.FeedWidget.Feeds[row]
 		tui.setItems(false, tui.LastSelectedWidget == tui.FeedWidget.Table)
@@ -572,7 +575,7 @@ func NewTui() *Tui {
 		InputWidget:        &InputBox{inputWidget, 0},
 		WaitGroup:          &sync.WaitGroup{},
 		SelectingFeeds:     []*fd.Feed{},
-		ConfirmationStatus: 0,
+		ConfirmationStatus: defaultConfirmationStatus,
 		LastSelectedWidget: feedTable,
 		Modal:              modal,
 	}
@@ -612,7 +615,7 @@ func (tui *Tui) setAppFunctions() {
 				tui.RefreshTui()
 				return nil
 			case 'd':
-				if tui.ConfirmationStatus == 1 {
+				if tui.ConfirmationStatus == 'd' {
 					if err := tui.GroupWidget.DeleteSelection(); err != nil {
 						if !errors.Is(err, ErrRmFailed) {
 							panic(err)
@@ -621,10 +624,10 @@ func (tui *Tui) setAppFunctions() {
 					tui.GroupWidget.setGroups()
 					tui.RefreshTui()
 					tui.Notify("Deleted.")
-					tui.ConfirmationStatus = 0
+					tui.ConfirmationStatus = defaultConfirmationStatus
 				} else {
 					tui.Notify("Press d again to delete the feed.")
-					tui.ConfirmationStatus = 1
+					tui.ConfirmationStatus = 'd'
 				}
 			case 'x':
 				texts := []string{
@@ -693,7 +696,7 @@ func (tui *Tui) setAppFunctions() {
 				}
 				return nil
 			case 'd':
-				if tui.ConfirmationStatus == 1 {
+				if tui.ConfirmationStatus == 'd' {
 					if err := tui.FeedWidget.DeleteSelection(); err != nil {
 						if !errors.Is(err, ErrRmFailed) {
 							panic(err)
@@ -701,37 +704,61 @@ func (tui *Tui) setAppFunctions() {
 					}
 					tui.FeedWidget.setFeeds()
 					tui.Notify("Deleted.")
-					tui.ConfirmationStatus = 0
+					tui.ConfirmationStatus = defaultConfirmationStatus
 				} else {
 					tui.Notify("Press d again to delete the feed.")
-					tui.ConfirmationStatus = 1
+					tui.ConfirmationStatus = 'd'
 				}
 			case 'u':
 				row, _ := tui.FeedWidget.Table.GetSelection()
 				selectedFeed := tui.FeedWidget.Feeds[row]
-				if !selectedFeed.IsMerged() {
-					if tui.ConfirmationStatus == 2 {
-						feedLink, _ := selectedFeed.GetFeedLink()
-						feed, err := fd.GetFeedFromURL(feedLink, "")
-						if err != nil {
-							panic(err)
-						}
-						selectedFeed.Title = feed.Title
-
-						if err := tui.FeedWidget.SaveFeed(selectedFeed); err != nil {
-							panic(err)
-						}
-
-						tui.FeedWidget.setFeeds()
-						tui.Notify("Reset.")
-						tui.ConfirmationStatus = 0
-					} else {
-						tui.Notify("Press u again to reset the feed's title.")
-						tui.ConfirmationStatus = 2
+				if tui.ConfirmationStatus == 'u' {
+					feedLink, _ := selectedFeed.GetFeedLink()
+					feed, err := fd.GetFeedFromURL(feedLink, "")
+					if err != nil {
+						panic(err)
 					}
+					selectedFeed.Title = feed.Title
+
+					if err := tui.FeedWidget.SaveFeed(selectedFeed); err != nil {
+						panic(err)
+					}
+
+					tui.FeedWidget.setFeeds()
+					tui.Notify("Reset.")
+					tui.ConfirmationStatus = defaultConfirmationStatus
 				} else {
-					tui.Notify("A mergedFeed cannot be reset.")
-					tui.ConfirmationStatus = 0
+					tui.Notify("Press u again to reset the feed's title.")
+					tui.ConfirmationStatus = 'u'
+				}
+			case 'e':
+				if tui.ConfirmationStatus == 'e' {
+					listFile, err := os.Create(exportListPath)
+					if err != nil {
+						panic(err)
+					}
+					defer listFile.Close()
+
+					for _, feed := range tui.FeedWidget.Feeds {
+						listFile.WriteString(feed.FeedLinks[0] + "\n")
+					}
+
+					tui.Notify("Exported to " + exportListPath + ".")
+					tui.ConfirmationStatus = defaultConfirmationStatus
+				} else {
+					tui.Notify("Press e again to export feed urls.")
+					tui.ConfirmationStatus = 'e'
+				}
+			case 'i':
+				if tui.ConfirmationStatus == 'i' {
+					if err := tui.AddFeedsFromURL(importListPath); err != nil {
+						panic(err)
+					}
+					tui.Notify("Imported from " + importListPath + ".")
+					tui.ConfirmationStatus = defaultConfirmationStatus
+				} else {
+					tui.Notify("Press i again to import from " + importListPath + ".")
+					tui.ConfirmationStatus = 'i'
 				}
 			case 'x':
 				texts := []string{
@@ -1007,11 +1034,6 @@ func (tui *Tui) Run() error {
 	}
 
 	if err := tui.LoadFeeds(cachePath); err != nil {
-		return err
-	}
-
-	listPath := filepath.Join(getDataPath(), "list.txt")
-	if err := tui.AddFeedsFromURL(listPath); err != nil {
 		return err
 	}
 
