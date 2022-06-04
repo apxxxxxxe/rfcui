@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -46,6 +47,7 @@ type Tui struct {
 	WaitGroup          *sync.WaitGroup
 	SelectingFeeds     []*fd.Feed
 	ConfirmationStatus int
+	LastSelectedWidget tview.Primitive
 	Modal              *tview.Modal
 }
 
@@ -191,19 +193,33 @@ func (tui *Tui) UpdateHelp(text string) {
 }
 
 func (tui *Tui) RefreshTui() {
-	focus := tui.App.GetFocus()
-	if focus == tui.FeedWidget.Table {
+	switch tui.App.GetFocus() {
+	case tui.GroupWidget.Table:
+		row, column := tui.GroupWidget.Table.GetSelection()
+		tui.selectGroupRow(row, column)
+	case tui.FeedWidget.Table:
 		row, column := tui.FeedWidget.Table.GetSelection()
-		tui.selectMainRow(row, column)
-	} else if focus == tui.SubWidget.Table {
+		tui.selectFeedRow(row, column)
+	case tui.SubWidget.Table:
 		row, column := tui.SubWidget.Table.GetSelection()
 		tui.selectSubRow(row, column)
 	}
 }
 
-func (tui *Tui) setItems(paintColor bool) {
-	row, _ := tui.FeedWidget.Table.GetSelection()
-	items := tui.FeedWidget.Feeds[row].Items
+func (tui *Tui) setItems(paintColor, resetRow bool) {
+	var (
+		row   int
+		items []*fd.Item
+	)
+
+	focus := tui.App.GetFocus()
+	if focus == tui.GroupWidget.Table {
+		row, _ = tui.GroupWidget.Table.GetSelection()
+		items = tui.GroupWidget.Groups[row].Items
+	} else if focus == tui.FeedWidget.Table {
+		row, _ = tui.FeedWidget.Table.GetSelection()
+		items = tui.FeedWidget.Feeds[row].Items
+	}
 
 	tui.SubWidget.Items = items
 
@@ -216,7 +232,17 @@ func (tui *Tui) setItems(paintColor bool) {
 	}
 
 	if tui.SubWidget.Table.GetRowCount() != 0 {
-		tui.SubWidget.Table.Select(0, 0).ScrollToBeginning()
+		if resetRow {
+			tui.SubWidget.Table.Select(0, 0).ScrollToBeginning()
+		} else {
+			row, _ := tui.SubWidget.Table.GetSelection()
+			max := tui.SubWidget.Table.GetRowCount() - 1
+			if row > max {
+				tui.SubWidget.Table.Select(max, 0).ScrollToEnd()
+			} else {
+				tui.SubWidget.Table.Select(row, 0)
+			}
+		}
 	}
 }
 
@@ -240,17 +266,17 @@ func (tui *Tui) GetTodaysFeeds() error {
 	targetfeed.Items = result
 
 	isExist := false
-	for i, f := range tui.FeedWidget.Feeds {
-		if f.Title == feedname {
-			tui.FeedWidget.Feeds[i] = targetfeed
+	for i, g := range tui.GroupWidget.Groups {
+		if g.Title == feedname {
+			tui.GroupWidget.Groups[i] = targetfeed
 			isExist = true
 			break
 		}
 	}
 	if !isExist {
-		tui.FeedWidget.Feeds = append(tui.FeedWidget.Feeds, targetfeed)
+		tui.GroupWidget.Groups = append(tui.GroupWidget.Groups, targetfeed)
 	}
-	tui.FeedWidget.setFeeds()
+	tui.GroupWidget.setFeeds()
 	return nil
 }
 
@@ -312,19 +338,42 @@ func (tui *Tui) updateAllFeed() error {
 		}
 		tui.FeedWidget.Table.ScrollToBeginning()
 	}
+	tui.GroupWidget.setFeeds()
 	tui.FeedWidget.setFeeds()
 	tui.RefreshTui()
 
 	return nil
 }
 
-func (tui *Tui) selectMainRow(row, column int) {
+func (tui *Tui) selectGroupRow(row, column int) {
+	var feed *fd.Feed
+	tui.Notify("")
+	tui.ConfirmationStatus = 0
+	if len(tui.GroupWidget.Groups) > 0 {
+		feed = tui.GroupWidget.Groups[row]
+		tui.setItems(true, tui.LastSelectedWidget == tui.GroupWidget.Table)
+	}
+	if tui.App.GetFocus() == tui.GroupWidget.Table {
+		if len(tui.GroupWidget.Groups) > 0 {
+			feedStatus := [][]string{
+				{"Title:", feed.Title},
+				{"Link:", feed.Link},
+				{"Description:", feed.Description},
+				{"Colorcode:", strconv.Itoa(feed.Color)},
+			}
+			tui.showDescription(feedStatus)
+		}
+		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
+	}
+}
+
+func (tui *Tui) selectFeedRow(row, column int) {
 	var feed *fd.Feed
 	tui.Notify("")
 	tui.ConfirmationStatus = 0
 	if len(tui.FeedWidget.Feeds) > 0 {
 		feed = tui.FeedWidget.Feeds[row]
-		tui.setItems(tui.FeedWidget.Feeds[row].IsMerged())
+		tui.setItems(false, tui.LastSelectedWidget == tui.FeedWidget.Table)
 	}
 	if tui.App.GetFocus() == tui.FeedWidget.Table {
 		if len(tui.FeedWidget.Feeds) > 0 {
@@ -425,6 +474,22 @@ func (tui *Tui) AddFeedsFromURL(path string) error {
 	return nil
 }
 
+func (tui *Tui) LoadFeeds(path string) error {
+	for _, file := range myio.DirWalk(path) {
+		b, err := ioutil.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		feed := fd.DecodeFeed(b)
+		if len(feed.FeedLinks) > 1 {
+			tui.GroupWidget.Groups = append(tui.GroupWidget.Groups, feed)
+		} else {
+			tui.FeedWidget.Feeds = append(tui.FeedWidget.Feeds, feed)
+		}
+	}
+	return nil
+}
+
 func NewTui() *Tui {
 
 	groupTable := tview.NewTable()
@@ -453,7 +518,7 @@ func NewTui() *Tui {
 	mainFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
 			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-        AddItem(groupTable, 0, 2, false).
+				AddItem(groupTable, 0, 2, false).
 				AddItem(feedTable, 0, 2, false).
 				AddItem(infoWidget, 0, 1, false),
 				0, 1, false).
@@ -466,11 +531,12 @@ func NewTui() *Tui {
 	descriptionFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
 			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(feedTable, 0, 4, false).
+				AddItem(groupTable, 0, 2, false).
+				AddItem(feedTable, 0, 2, false).
 				AddItem(infoWidget, 0, 1, false),
 				0, 1, false).
 			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(subTable, 0, 2, false).
+				AddItem(subTable, 0, 1, false).
 				AddItem(descriptionWidget, 0, 3, false),
 				0, 2, false),
 			0, 1, false).AddItem(helpWidget, 1, 0, false)
@@ -496,6 +562,7 @@ func NewTui() *Tui {
 	tui := &Tui{
 		App:                tview.NewApplication(),
 		Pages:              pages,
+		GroupWidget:        &GroupWidget{groupTable, []*fd.Feed{}},
 		FeedWidget:         &FeedWidget{feedTable, []*fd.Feed{}},
 		SubWidget:          &SubWidget{subTable, []*fd.Item{}},
 		Description:        descriptionWidget,
@@ -505,6 +572,7 @@ func NewTui() *Tui {
 		WaitGroup:          &sync.WaitGroup{},
 		SelectingFeeds:     []*fd.Feed{},
 		ConfirmationStatus: 0,
+		LastSelectedWidget: feedTable,
 		Modal:              modal,
 	}
 
@@ -514,11 +582,17 @@ func NewTui() *Tui {
 }
 
 func (tui *Tui) setAppFunctions() {
-	tui.FeedWidget.Table.SetSelectionChangedFunc(func(row, column int) {
-		tui.selectMainRow(row, column)
+
+	tui.GroupWidget.Table.SetSelectionChangedFunc(func(row, column int) {
+		tui.selectGroupRow(row, column)
 	})
-	tui.FeedWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	tui.GroupWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyEnter:
+			tui.LastSelectedWidget = tui.GroupWidget.Table
+			tui.App.SetFocus(tui.SubWidget.Table)
+			tui.RefreshTui()
+			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'R':
@@ -533,7 +607,88 @@ func (tui *Tui) setAppFunctions() {
 				tui.App.SetFocus(tui.InputWidget.Input)
 				return nil
 			case 'l':
-				tui.App.SetFocus(tui.SubWidget.Table)
+				tui.App.SetFocus(tui.FeedWidget.Table)
+				tui.RefreshTui()
+				return nil
+			case 'v':
+				tui.SelectFeed()
+			case 'c':
+				tui.InputWidget.Input.SetTitle("Change the feed's color")
+				tui.InputWidget.Mode = 2
+				tui.Pages.ShowPage(inputField)
+				tui.App.SetFocus(tui.InputWidget.Input)
+				tui.Notify("input 256 color code, or input \"random\" to randomize color.")
+			case 'm':
+				if len(tui.SelectingFeeds) > 0 {
+					tui.InputWidget.Input.SetTitle("Make a Group")
+					tui.InputWidget.Mode = 1
+					tui.Pages.ShowPage(inputField)
+					tui.App.SetFocus(tui.InputWidget.Input)
+				} else {
+					tui.Notify("Select feeds with the s key to make a group.")
+				}
+				return nil
+			case 'd':
+				if tui.ConfirmationStatus == 1 {
+					if err := tui.GroupWidget.DeleteSelection(); err != nil {
+						if !errors.Is(err, ErrRmFailed) {
+							panic(err)
+						}
+					}
+					tui.GroupWidget.setFeeds()
+					tui.Notify("Deleted.")
+					tui.ConfirmationStatus = 0
+				} else {
+					tui.Notify("Press d again to delete the feed.")
+					tui.ConfirmationStatus = 1
+				}
+			case 'x':
+				texts := []string{
+					"c: recolor selecting feed",
+					"d: delete selecting feed",
+					"l: move to SubColumn",
+					"r: rename selecting feed",
+					"R: reload feeds",
+					"q: Exit rfcui",
+				}
+				text := ""
+				for _, line := range texts {
+					text += line + "\n"
+				}
+				tui.Modal.SetTitle("keymaps")
+				tui.Modal.SetText(text)
+				tui.Pages.ShowPage(modalPage)
+				tui.App.SetFocus(tui.Modal)
+			}
+		}
+		return event
+	})
+
+	tui.FeedWidget.Table.SetSelectionChangedFunc(func(row, column int) {
+		tui.selectFeedRow(row, column)
+	})
+	tui.FeedWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEnter:
+			tui.LastSelectedWidget = tui.FeedWidget.Table
+			tui.App.SetFocus(tui.SubWidget.Table)
+			tui.RefreshTui()
+			return nil
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'R':
+				if err := tui.updateAllFeed(); err != nil {
+					panic(err)
+				}
+				return nil
+			case 'r':
+				tui.InputWidget.Input.SetTitle("rename the feed")
+				tui.InputWidget.Mode = 3
+				tui.Pages.ShowPage(inputField)
+				tui.App.SetFocus(tui.InputWidget.Input)
+				return nil
+			case 'h':
+				tui.App.SetFocus(tui.GroupWidget.Table)
 				tui.RefreshTui()
 				return nil
 			case 'v':
@@ -633,12 +788,13 @@ func (tui *Tui) setAppFunctions() {
 					}
 				}
 				return nil
+			case tcell.KeyEscape:
+				tui.App.SetFocus(tui.LastSelectedWidget)
+				tui.LastSelectedWidget = tui.SubWidget.Table
+				tui.RefreshTui()
+				return nil
 			case tcell.KeyRune:
 				switch event.Rune() {
-				case 'h':
-					tui.App.SetFocus(tui.FeedWidget.Table)
-					tui.RefreshTui()
-					return nil
 				case 'l':
 					tui.Pages.SwitchToPage(descriptionPage)
 					tui.App.SetFocus(tui.Description)
@@ -781,7 +937,7 @@ func (tui *Tui) setAppFunctions() {
 					panic(err)
 				}
 				tui.FeedWidget.setFeeds()
-				tui.setItems(tui.FeedWidget.Feeds[row].IsMerged())
+				tui.setItems(tui.FeedWidget.Feeds[row].IsMerged(), false)
 				tui.Notify(fmt.Sprint("set color-number as ", number))
 			case 3:
 				title := tui.InputWidget.Input.GetText()
@@ -823,9 +979,6 @@ func (tui *Tui) setAppFunctions() {
 			return event
 		}
 		switch event.Key() {
-		case tcell.KeyEscape:
-			tui.App.Stop()
-			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'n':
@@ -870,7 +1023,7 @@ func (tui *Tui) Run() error {
 		}
 	}
 
-	if err := tui.FeedWidget.LoadFeeds(cachePath); err != nil {
+	if err := tui.LoadFeeds(cachePath); err != nil {
 		return err
 	}
 

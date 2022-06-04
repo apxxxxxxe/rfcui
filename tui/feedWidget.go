@@ -3,7 +3,6 @@ package tui
 import (
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -48,17 +47,6 @@ func (m *FeedWidget) SaveFeeds() error {
 		if err := m.SaveFeed(f); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func (m *FeedWidget) LoadFeeds(path string) error {
-	for _, file := range myio.DirWalk(path) {
-		b, err := ioutil.ReadFile(file)
-		if err != nil {
-			return err
-		}
-		m.Feeds = append(m.Feeds, fd.DecodeFeed(b))
 	}
 	return nil
 }
