@@ -21,13 +21,13 @@ type GroupWidget struct {
 	Groups []*fd.Feed
 }
 
-func (m *GroupWidget) SaveFeed(f *fd.Feed) error {
+func (m *GroupWidget) SaveGroup(f *fd.Feed) error {
 	b, err := fd.EncodeFeed(f)
 	if err != nil {
 		return err
 	}
 
-  hash := fmt.Sprintf("%x", md5.Sum([]byte(f.Title)))
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(f.Title)))
 
 	if err := myio.SaveBytes(b, filepath.Join(cachePath, hash)); err != nil {
 		return err
@@ -38,7 +38,7 @@ func (m *GroupWidget) SaveFeed(f *fd.Feed) error {
 
 func (m *GroupWidget) SaveFeeds() error {
 	for _, f := range m.Groups {
-		if err := m.SaveFeed(f); err != nil {
+		if err := m.SaveGroup(f); err != nil {
 			return err
 		}
 	}
@@ -103,13 +103,13 @@ func (m *GroupWidget) AddMergedFeed(feeds []*fd.Feed, title string) error {
 		return err
 	}
 	m.Groups = append(m.Groups, f)
-	if err := m.SaveFeed(f); err != nil {
+	if err := m.SaveGroup(f); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *GroupWidget) setFeeds() {
+func (m *GroupWidget) setGroups() {
 	m.sortFeeds()
 	table := m.Table.Clear()
 	for i, feed := range m.Groups {

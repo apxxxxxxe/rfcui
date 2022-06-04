@@ -129,8 +129,14 @@ func (tui *Tui) AddFeedFromURL(url string) error {
 		return err
 	}
 
-	if err := tui.FeedWidget.SaveFeed(f); err != nil {
-		return err
+	if f.IsMerged() {
+		if err := tui.GroupWidget.SaveGroup(f); err != nil {
+			return err
+		}
+	} else {
+		if err := tui.FeedWidget.SaveFeed(f); err != nil {
+			return err
+		}
 	}
 
 	for i, feed := range tui.FeedWidget.Feeds {
@@ -276,7 +282,7 @@ func (tui *Tui) GetTodaysFeeds() error {
 	if !isExist {
 		tui.GroupWidget.Groups = append(tui.GroupWidget.Groups, targetfeed)
 	}
-	tui.GroupWidget.setFeeds()
+	tui.GroupWidget.setGroups()
 	return nil
 }
 
@@ -338,7 +344,7 @@ func (tui *Tui) updateAllFeed() error {
 		}
 		tui.FeedWidget.Table.ScrollToBeginning()
 	}
-	tui.GroupWidget.setFeeds()
+	tui.GroupWidget.setGroups()
 	tui.FeedWidget.setFeeds()
 	tui.RefreshTui()
 
@@ -635,7 +641,8 @@ func (tui *Tui) setAppFunctions() {
 							panic(err)
 						}
 					}
-					tui.GroupWidget.setFeeds()
+					tui.GroupWidget.setGroups()
+          tui.RefreshTui()
 					tui.Notify("Deleted.")
 					tui.ConfirmationStatus = 0
 				} else {
@@ -895,7 +902,7 @@ func (tui *Tui) setAppFunctions() {
 						panic(err)
 					}
 					tui.GroupWidget.Groups = append(tui.GroupWidget.Groups, mergedFeed)
-					if err := tui.GroupWidget.SaveFeed(mergedFeed); err != nil {
+					if err := tui.GroupWidget.SaveGroup(mergedFeed); err != nil {
 						panic(err)
 					}
 				}
