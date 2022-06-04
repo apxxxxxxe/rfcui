@@ -201,7 +201,8 @@ func (tui *Tui) UpdateHelp(text string) {
 }
 
 func (tui *Tui) RefreshTui() {
-	switch tui.App.GetFocus() {
+	focus := tui.App.GetFocus()
+	switch focus {
 	case tui.GroupWidget.Table:
 		row, column := tui.GroupWidget.Table.GetSelection()
 		tui.selectGroupRow(row, column)
@@ -212,6 +213,20 @@ func (tui *Tui) RefreshTui() {
 		row, column := tui.SubWidget.Table.GetSelection()
 		tui.selectSubRow(row, column)
 	}
+
+	tables := []*tview.Table{
+		tui.GroupWidget.Table,
+		tui.FeedWidget.Table,
+		tui.SubWidget.Table,
+	}
+	for _, table := range tables {
+		if focus == table {
+			table.SetBorderColor(selectingColor)
+		} else {
+			table.SetBorderColor(tcell.ColorDefault)
+		}
+	}
+
 }
 
 func (tui *Tui) setItems(paintColor, resetRow bool) {
