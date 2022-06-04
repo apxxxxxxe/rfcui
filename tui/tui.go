@@ -76,11 +76,11 @@ func (tui *Tui) updateGroup(index int) error {
 	tui.GroupWidget.Groups[index].Items = []*fd.Item{}
 	for _, url := range targetFeed.FeedLinks {
 		for _, f := range tui.FeedWidget.Feeds {
-      feedLink, _ := f.GetFeedLink()
-      if url == feedLink {
-        tui.GroupWidget.Groups[index].Items = append(tui.GroupWidget.Groups[index].Items, f.Items...)
-        break
-      }
+			feedLink, _ := f.GetFeedLink()
+			if url == feedLink {
+				tui.GroupWidget.Groups[index].Items = append(tui.GroupWidget.Groups[index].Items, f.Items...)
+				break
+			}
 		}
 	}
 	tui.GroupWidget.Groups[index].SortItems()
@@ -303,34 +303,34 @@ func (tui *Tui) updateAllFeed() error {
 	wg := sync.WaitGroup{}
 
 	for index := range tui.FeedWidget.Feeds {
-    wg.Add(1)
-    go func(i int) {
-      if err := tui.updateFeed(i); err != nil {
-        if !errors.Is(err, ErrGettingFeedFailed) {
-          panic(err)
-        }
-      } else {
-        if err := tui.FeedWidget.SaveFeed(tui.FeedWidget.Feeds[i]); err != nil {
-          panic(err)
-        }
-      }
-      doneCount++
-      if doneCount == length {
-        tui.Notify("All feeds are up-to-date.")
-      } else {
-        tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
-      }
-      tui.App.ForceDraw()
-      wg.Done()
-    }(index)
+		wg.Add(1)
+		go func(i int) {
+			if err := tui.updateFeed(i); err != nil {
+				if !errors.Is(err, ErrGettingFeedFailed) {
+					panic(err)
+				}
+			} else {
+				if err := tui.FeedWidget.SaveFeed(tui.FeedWidget.Feeds[i]); err != nil {
+					panic(err)
+				}
+			}
+			doneCount++
+			if doneCount == length {
+				tui.Notify("All feeds are up-to-date.")
+			} else {
+				tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
+			}
+			tui.App.ForceDraw()
+			wg.Done()
+		}(index)
 	}
 
 	wg.Wait()
 
 	for index := range tui.GroupWidget.Groups {
-    if err := tui.updateGroup(index); err != nil {
-      return err
-    }
+		if err := tui.updateGroup(index); err != nil {
+			return err
+		}
 	}
 
 	if len(tui.FeedWidget.Feeds) > 0 {
@@ -603,31 +603,13 @@ func (tui *Tui) setAppFunctions() {
 				return nil
 			case 'r':
 				tui.InputWidget.Input.SetTitle("rename the feed")
-				tui.InputWidget.Mode = 3
+				tui.InputWidget.Mode = 4
 				tui.Pages.ShowPage(inputField)
 				tui.App.SetFocus(tui.InputWidget.Input)
 				return nil
 			case 'l':
 				tui.App.SetFocus(tui.FeedWidget.Table)
 				tui.RefreshTui()
-				return nil
-			case 'v':
-				tui.SelectFeed()
-			case 'c':
-				tui.InputWidget.Input.SetTitle("Change the feed's color")
-				tui.InputWidget.Mode = 2
-				tui.Pages.ShowPage(inputField)
-				tui.App.SetFocus(tui.InputWidget.Input)
-				tui.Notify("input 256 color code, or input \"random\" to randomize color.")
-			case 'm':
-				if len(tui.SelectingFeeds) > 0 {
-					tui.InputWidget.Input.SetTitle("Make a Group")
-					tui.InputWidget.Mode = 1
-					tui.Pages.ShowPage(inputField)
-					tui.App.SetFocus(tui.InputWidget.Input)
-				} else {
-					tui.Notify("Select feeds with the s key to make a group.")
-				}
 				return nil
 			case 'd':
 				if tui.ConfirmationStatus == 1 {
@@ -646,9 +628,8 @@ func (tui *Tui) setAppFunctions() {
 				}
 			case 'x':
 				texts := []string{
-					"c: recolor selecting feed",
 					"d: delete selecting feed",
-					"l: move to SubColumn",
+					"l: move to FeedColumn",
 					"r: rename selecting feed",
 					"R: reload feeds",
 					"q: Exit rfcui",
@@ -756,7 +737,7 @@ func (tui *Tui) setAppFunctions() {
 				texts := []string{
 					"c: recolor selecting feed",
 					"d: delete selecting feed",
-					"l: move to SubColumn",
+					"h: move to GroupColumn",
 					"r: rename selecting feed",
 					"R: reload feeds",
 					"q: Exit rfcui",
@@ -956,6 +937,8 @@ func (tui *Tui) setAppFunctions() {
 					panic(err)
 				}
 				tui.FeedWidget.setFeeds()
+			case 4:
+				tui.Notify("まだ実装してない")
 			}
 			tui.SelectingFeeds = []*fd.Feed{}
 			tui.InputWidget.Input.SetText("")
