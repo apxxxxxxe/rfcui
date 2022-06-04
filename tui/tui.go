@@ -71,54 +71,53 @@ func (tui *Tui) SelectFeed() {
 	}
 }
 
+func (tui *Tui) updateGroup(index int) error {
+	targetFeed := tui.GroupWidget.Groups[index]
+	tui.GroupWidget.Groups[index].Items = []*fd.Item{}
+	for _, url := range targetFeed.FeedLinks {
+		for _, f := range tui.FeedWidget.Feeds {
+      feedLink, _ := f.GetFeedLink()
+      if url == feedLink {
+        tui.GroupWidget.Groups[index].Items = append(tui.GroupWidget.Groups[index].Items, f.Items...)
+        break
+      }
+		}
+	}
+	tui.GroupWidget.Groups[index].SortItems()
+	return nil
+}
+
 func (tui *Tui) updateFeed(index int) error {
 	targetFeed := tui.FeedWidget.Feeds[index]
 
-	if targetFeed.IsMerged() {
-		tui.FeedWidget.Feeds[index].Items = []*fd.Item{}
-		for _, url := range targetFeed.FeedLinks {
-			for _, f := range tui.FeedWidget.Feeds {
-				if !f.IsMerged() {
-					feedLink, _ := f.GetFeedLink()
-					if url == feedLink {
-						tui.FeedWidget.Feeds[index].Items = append(tui.FeedWidget.Feeds[index].Items, f.Items...)
-						break
-					}
-				}
-			}
-		}
-		tui.FeedWidget.Feeds[index].SortItems()
+	color := targetFeed.Color
+	url, err := targetFeed.GetFeedLink()
+	if err != nil {
+		return fmt.Errorf(targetFeed.Title, ": ", err)
+	}
 
+	feed, err := fd.GetFeedFromURL(url, "")
+
+	if err != nil {
+		feed = getInvalidFeed(url, err)
+	}
+
+	if color > 0 && color < len(mycolor.TcellColors) {
+		for _, item := range feed.Items {
+			item.Color = targetFeed.Color
+		}
 	} else {
-		color := targetFeed.Color
-		url, err := targetFeed.GetFeedLink()
-		if err != nil {
-			return fmt.Errorf(targetFeed.Title, ": ", err)
-		}
+		targetFeed.Title = feed.Title
+		targetFeed.Color = feed.Color
+	}
+	feed.SortItems()
 
-		feed, err := fd.GetFeedFromURL(url, "")
+	targetFeed.Link = feed.Link
+	targetFeed.Description = feed.Description
+	targetFeed.Items = feed.Items
 
-		if err != nil {
-			feed = getInvalidFeed(url, err)
-		}
-
-		if color > 0 && color < len(mycolor.TcellColors) {
-			for _, item := range feed.Items {
-				item.Color = targetFeed.Color
-			}
-		} else {
-			targetFeed.Title = feed.Title
-			targetFeed.Color = feed.Color
-		}
-		feed.SortItems()
-
-		targetFeed.Link = feed.Link
-		targetFeed.Description = feed.Description
-		targetFeed.Items = feed.Items
-
-		if err != nil {
-			return ErrGettingFeedFailed
-		}
+	if err != nil {
+		return ErrGettingFeedFailed
 	}
 	return nil
 }
@@ -303,39 +302,35 @@ func (tui *Tui) updateAllFeed() error {
 
 	wg := sync.WaitGroup{}
 
-	for index, feed := range tui.FeedWidget.Feeds {
-		if !feed.IsMerged() {
-			wg.Add(1)
-			go func(i int) {
-				if err := tui.updateFeed(i); err != nil {
-					if !errors.Is(err, ErrGettingFeedFailed) {
-						panic(err)
-					}
-				} else {
-					if err := tui.FeedWidget.SaveFeed(tui.FeedWidget.Feeds[i]); err != nil {
-						panic(err)
-					}
-				}
-				doneCount++
-				if doneCount == length {
-					tui.Notify("All feeds are up-to-date.")
-				} else {
-					tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
-				}
-				tui.App.ForceDraw()
-				wg.Done()
-			}(index)
-		}
+	for index := range tui.FeedWidget.Feeds {
+    wg.Add(1)
+    go func(i int) {
+      if err := tui.updateFeed(i); err != nil {
+        if !errors.Is(err, ErrGettingFeedFailed) {
+          panic(err)
+        }
+      } else {
+        if err := tui.FeedWidget.SaveFeed(tui.FeedWidget.Feeds[i]); err != nil {
+          panic(err)
+        }
+      }
+      doneCount++
+      if doneCount == length {
+        tui.Notify("All feeds are up-to-date.")
+      } else {
+        tui.Notify(fmt.Sprint("Updating ", doneCount, "/", length, " feeds...\r"))
+      }
+      tui.App.ForceDraw()
+      wg.Done()
+    }(index)
 	}
 
 	wg.Wait()
 
-	for index, feed := range tui.FeedWidget.Feeds {
-		if feed.IsMerged() {
-			if err := tui.updateFeed(index); err != nil {
-				return err
-			}
-		}
+	for index := range tui.GroupWidget.Groups {
+    if err := tui.updateGroup(index); err != nil {
+      return err
+    }
 	}
 
 	if len(tui.FeedWidget.Feeds) > 0 {
@@ -642,7 +637,7 @@ func (tui *Tui) setAppFunctions() {
 						}
 					}
 					tui.GroupWidget.setGroups()
-          tui.RefreshTui()
+					tui.RefreshTui()
 					tui.Notify("Deleted.")
 					tui.ConfirmationStatus = 0
 				} else {
