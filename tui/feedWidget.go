@@ -21,19 +21,13 @@ type FeedWidget struct {
 }
 
 func (m *FeedWidget) SaveFeed(f *fd.Feed) error {
-	var hash string
-
 	b, err := fd.EncodeFeed(f)
 	if err != nil {
 		return err
 	}
 
-	if f.IsMerged() {
-		hash = fmt.Sprintf("%x", md5.Sum([]byte(f.Title)))
-	} else {
-		feedLink, _ := f.GetFeedLink()
-		hash = fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
-	}
+	feedLink, _ := f.GetFeedLink()
+  hash := fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
 
 	if err := myio.SaveBytes(b, filepath.Join(cachePath, hash)); err != nil {
 		return err

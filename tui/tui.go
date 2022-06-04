@@ -481,7 +481,7 @@ func (tui *Tui) LoadFeeds(path string) error {
 			return err
 		}
 		feed := fd.DecodeFeed(b)
-		if len(feed.FeedLinks) > 1 {
+		if feed.IsMerged() {
 			tui.GroupWidget.Groups = append(tui.GroupWidget.Groups, feed)
 		} else {
 			tui.FeedWidget.Feeds = append(tui.FeedWidget.Feeds, feed)
@@ -868,7 +868,7 @@ func (tui *Tui) setAppFunctions() {
 			case 1: // merge feeds
 				title := tui.InputWidget.Input.GetText()
 				existIndex := -1
-				for i, feed := range tui.FeedWidget.Feeds {
+				for i, feed := range tui.GroupWidget.Groups {
 					if feed.IsMerged() && title == feed.Title {
 						existIndex = i
 						break
@@ -877,18 +877,16 @@ func (tui *Tui) setAppFunctions() {
 
 				if existIndex != -1 {
 					for _, f := range tui.SelectingFeeds {
-						if !f.IsMerged() {
-							isNewFeedLink := true
-							feedLink, _ := f.GetFeedLink()
-							for _, url := range tui.FeedWidget.Feeds[existIndex].FeedLinks {
-								if feedLink == url {
-									isNewFeedLink = false
-									break
-								}
+						isNewFeedLink := true
+						feedLink, _ := f.GetFeedLink()
+						for _, url := range tui.GroupWidget.Groups[existIndex].FeedLinks {
+							if feedLink == url {
+								isNewFeedLink = false
+								break
 							}
-							if isNewFeedLink {
-								tui.FeedWidget.Feeds[existIndex].FeedLinks = append(tui.FeedWidget.Feeds[existIndex].FeedLinks, feedLink)
-							}
+						}
+						if isNewFeedLink {
+							tui.GroupWidget.Groups[existIndex].FeedLinks = append(tui.GroupWidget.Groups[existIndex].FeedLinks, feedLink)
 						}
 					}
 				} else {
@@ -896,8 +894,8 @@ func (tui *Tui) setAppFunctions() {
 					if err != nil {
 						panic(err)
 					}
-					tui.FeedWidget.Feeds = append(tui.FeedWidget.Feeds, mergedFeed)
-					if err := tui.FeedWidget.SaveFeed(mergedFeed); err != nil {
+					tui.GroupWidget.Groups = append(tui.GroupWidget.Groups, mergedFeed)
+					if err := tui.GroupWidget.SaveFeed(mergedFeed); err != nil {
 						panic(err)
 					}
 				}

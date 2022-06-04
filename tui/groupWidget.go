@@ -21,38 +21,31 @@ type GroupWidget struct {
 	Groups []*fd.Feed
 }
 
-func (m *GroupWidget) SaveFeed(f *fd.Feed) error { 
-	var hash string
-
+func (m *GroupWidget) SaveFeed(f *fd.Feed) error {
 	b, err := fd.EncodeFeed(f)
 	if err != nil {
 		return err
 	}
 
-	if f.IsMerged() {
-		hash = fmt.Sprintf("%x", md5.Sum([]byte(f.Title)))
-	} else {
-		feedLink, _ := f.GetFeedLink()
-		hash = fmt.Sprintf("%x", md5.Sum([]byte(feedLink)))
-	}
+  hash := fmt.Sprintf("%x", md5.Sum([]byte(f.Title)))
 
 	if err := myio.SaveBytes(b, filepath.Join(cachePath, hash)); err != nil {
 		return err
 	}
 
 	return nil
-} 
+}
 
-func (m *GroupWidget) SaveFeeds() error { 
+func (m *GroupWidget) SaveFeeds() error {
 	for _, f := range m.Groups {
 		if err := m.SaveFeed(f); err != nil {
 			return err
 		}
 	}
 	return nil
-} 
+}
 
-func (m *GroupWidget) LoadFeeds(path string) error { 
+func (m *GroupWidget) LoadFeeds(path string) error {
 	for _, file := range myio.DirWalk(path) {
 		b, err := ioutil.ReadFile(file)
 		if err != nil {
@@ -61,18 +54,18 @@ func (m *GroupWidget) LoadFeeds(path string) error {
 		m.Groups = append(m.Groups, fd.DecodeFeed(b))
 	}
 	return nil
-} 
+}
 
-func (m *GroupWidget) DeleteSelection() error { 
+func (m *GroupWidget) DeleteSelection() error {
 	row, _ := m.Table.GetSelection()
 	if err := m.DeleteFeedFile(row); err != nil {
 		return err
 	}
 	m.DeleteFeed(row)
 	return nil
-} 
+}
 
-func (m *GroupWidget) DeleteFeedFile(index int) error { 
+func (m *GroupWidget) DeleteFeedFile(index int) error {
 	var hash string
 
 	v := m.Groups[index]
@@ -89,9 +82,9 @@ func (m *GroupWidget) DeleteFeedFile(index int) error {
 		return ErrRmFailed
 	}
 	return nil
-} 
+}
 
-func (m *GroupWidget) DeleteFeed(i int) { 
+func (m *GroupWidget) DeleteFeed(i int) {
 	m.Groups = append(m.Groups[:i], m.Groups[i+1:]...)
 }
 
@@ -102,9 +95,9 @@ func (m *GroupWidget) sortFeeds() {
 	sort.Slice(m.Groups, func(i, j int) bool {
 		return m.Groups[i].IsMerged() && !m.Groups[j].IsMerged()
 	})
-} 
+}
 
-func (m *GroupWidget) AddMergedFeed(feeds []*fd.Feed, title string) error { 
+func (m *GroupWidget) AddMergedFeed(feeds []*fd.Feed, title string) error {
 	f, err := fd.MergeFeeds(feeds, title)
 	if err != nil {
 		return err
@@ -114,9 +107,9 @@ func (m *GroupWidget) AddMergedFeed(feeds []*fd.Feed, title string) error {
 		return err
 	}
 	return nil
-} 
+}
 
-func (m *GroupWidget) setFeeds() { 
+func (m *GroupWidget) setFeeds() {
 	m.sortFeeds()
 	table := m.Table.Clear()
 	for i, feed := range m.Groups {
@@ -134,4 +127,4 @@ func (m *GroupWidget) setFeeds() {
 	if max < row {
 		m.Table.Select(max, 0).ScrollToBeginning()
 	}
-} 
+}
