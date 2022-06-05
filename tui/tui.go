@@ -414,7 +414,7 @@ func (tui *Tui) selectSubRow(row, column int) {
 	)
 
 	tui.Notify("")
-	tui.UpdateHelp("[h]:move to MainColumn [o]:open an item with $BROWSER [q]:quit rfcui")
+	tui.UpdateHelp("[ESC]:move to LeftColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 
 	if len(tui.SubWidget.Items) == 0 || len(tui.FeedWidget.Feeds) == 0 {
 		return
