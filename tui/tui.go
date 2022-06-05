@@ -1061,7 +1061,15 @@ func (tui *Tui) Run() error {
 		tui.WaitGroup.Done()
 	}()
 
-	if err := tui.App.SetRoot(tui.Pages, true).SetFocus(tui.FeedWidget.Table).Run(); err != nil {
+	tui.App.SetRoot(tui.Pages, true)
+
+	if len(tui.GroupWidget.Groups) > 0 {
+		tui.App.SetFocus(tui.GroupWidget.Table)
+	} else {
+		tui.App.SetFocus(tui.FeedWidget.Table)
+	}
+
+	if err := tui.App.Run(); err != nil {
 		tui.WaitGroup.Wait()
 		tui.App.Stop()
 		return err
