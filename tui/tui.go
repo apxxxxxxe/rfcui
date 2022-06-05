@@ -27,6 +27,7 @@ const (
 	mainPage                  = "MainPage"
 	modalPage                 = "modalPage"
 	defaultConfirmationStatus = '0'
+	selectingColor            = tcell.ColorGreen
 )
 
 var (
@@ -179,10 +180,7 @@ func getDataPath() string {
 func (tui *Tui) showDescription(texts [][]string) {
 	var s string
 	for _, line := range texts {
-		for _, text := range line {
-			s += text + " "
-		}
-		s += "\n"
+		s += fmt.Sprint("[#a0a0a0::b]", line[0], "[-::-] ", line[1], "\n")
 	}
 	tui.Description.SetText(s)
 }
@@ -525,11 +523,14 @@ func NewTui() *Tui {
 
 	descriptionWidget := tview.NewTextView()
 	descriptionWidget.SetTitle("Description").SetBorder(true).SetTitleAlign(tview.AlignLeft)
+	descriptionWidget.SetDynamicColors(true)
 
 	infoWidget := tview.NewTextView()
 	infoWidget.SetTitle("Info").SetBorder(true).SetTitleAlign(tview.AlignLeft)
+	infoWidget.SetDynamicColors(true)
 
 	helpWidget := tview.NewTextView().SetTextAlign(1)
+	helpWidget.SetDynamicColors(true)
 
 	inputWidget := tview.NewInputField()
 	inputWidget.SetBorder(true).SetTitleAlign(tview.AlignLeft)
