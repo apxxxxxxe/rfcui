@@ -770,6 +770,16 @@ func (tui *Tui) setAppFunctions() {
 					if err := tui.AddFeedsFromURL(importListPath); err != nil {
 						panic(err)
 					}
+
+					tui.WaitGroup.Add(1)
+					go func() {
+						if err := tui.updateAllFeed(); err != nil {
+							panic(err)
+						}
+						tui.App.QueueUpdateDraw(func() {})
+						tui.WaitGroup.Done()
+					}()
+
 					tui.Notify("Imported from " + importListPath + ".")
 					tui.ConfirmationStatus = defaultConfirmationStatus
 				} else {
