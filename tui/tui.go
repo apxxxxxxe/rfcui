@@ -756,7 +756,9 @@ func (tui *Tui) setAppFunctions() {
 					defer listFile.Close()
 
 					for _, feed := range tui.FeedWidget.Feeds {
-						listFile.WriteString(feed.FeedLinks[0] + "\n")
+						if _, err := listFile.WriteString(feed.FeedLinks[0] + "\n"); err != nil {
+							panic(err)
+						}
 					}
 
 					tui.Notify("Exported to " + exportListPath + ".")
