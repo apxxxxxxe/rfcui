@@ -28,6 +28,9 @@ const (
 	modalPage                 = "modalPage"
 	defaultConfirmationStatus = '0'
 	selectingColor            = tcell.ColorGreen
+	groupWidgetTitle          = "Groups"
+	FeedWidgetTitle           = "Feeds"
+	subWidgetTitle            = "Items"
 )
 
 var (
@@ -380,7 +383,6 @@ func (tui *Tui) selectGroupRow(row, column int) {
 			}
 			tui.showDescription(feedStatus)
 		}
-		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
 }
 
@@ -402,7 +404,6 @@ func (tui *Tui) selectFeedRow(row, column int) {
 			}
 			tui.showDescription(feedStatus)
 		}
-		tui.UpdateHelp("[l]:move to SubColumn [r]:reload selecting feed [R]:reload All feeds [q]:quit rfcui")
 	}
 }
 
@@ -414,7 +415,6 @@ func (tui *Tui) selectSubRow(row, column int) {
 	)
 
 	tui.Notify("")
-	tui.UpdateHelp("[ESC]:move to LeftColumn [o]:open an item with $BROWSER [q]:quit rfcui")
 
 	if len(tui.SubWidget.Items) == 0 || len(tui.FeedWidget.Feeds) == 0 {
 		return
@@ -510,15 +510,15 @@ func (tui *Tui) LoadFeeds(path string) error {
 func NewTui() *Tui {
 
 	groupTable := tview.NewTable()
-	groupTable.SetTitle("Groups").SetBorder(true).SetTitleAlign(tview.AlignLeft)
+	groupTable.SetTitle(groupWidgetTitle).SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	groupTable.Select(0, 0).SetSelectable(true, true)
 
 	feedTable := tview.NewTable()
-	feedTable.SetTitle("Feeds").SetBorder(true).SetTitleAlign(tview.AlignLeft)
+	feedTable.SetTitle(FeedWidgetTitle).SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	feedTable.Select(0, 0).SetSelectable(true, true)
 
 	subTable := tview.NewTable()
-	subTable.SetTitle("Items").SetBorder(true).SetTitleAlign(tview.AlignLeft)
+	subTable.SetTitle(subWidgetTitle).SetBorder(true).SetTitleAlign(tview.AlignLeft)
 	subTable.Select(0, 0).SetSelectable(true, true)
 
 	descriptionWidget := tview.NewTextView()
@@ -608,11 +608,6 @@ func (tui *Tui) setAppFunctions() {
 	})
 	tui.GroupWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyEnter:
-			tui.LastSelectedWidget = tui.GroupWidget.Table
-			tui.App.SetFocus(tui.SubWidget.Table)
-			tui.RefreshTui()
-			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'R':
@@ -627,6 +622,11 @@ func (tui *Tui) setAppFunctions() {
 				tui.App.SetFocus(tui.InputWidget.Input)
 				return nil
 			case 'l':
+				tui.LastSelectedWidget = tui.GroupWidget.Table
+				tui.App.SetFocus(tui.SubWidget.Table)
+				tui.RefreshTui()
+				return nil
+			case 'J':
 				tui.App.SetFocus(tui.FeedWidget.Table)
 				tui.RefreshTui()
 				return nil
@@ -671,11 +671,6 @@ func (tui *Tui) setAppFunctions() {
 	})
 	tui.FeedWidget.Table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
-		case tcell.KeyEnter:
-			tui.LastSelectedWidget = tui.FeedWidget.Table
-			tui.App.SetFocus(tui.SubWidget.Table)
-			tui.RefreshTui()
-			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'R':
@@ -689,7 +684,12 @@ func (tui *Tui) setAppFunctions() {
 				tui.Pages.ShowPage(inputField)
 				tui.App.SetFocus(tui.InputWidget.Input)
 				return nil
-			case 'h':
+			case 'l':
+				tui.LastSelectedWidget = tui.FeedWidget.Table
+				tui.App.SetFocus(tui.SubWidget.Table)
+				tui.RefreshTui()
+				return nil
+			case 'K':
 				tui.App.SetFocus(tui.GroupWidget.Table)
 				tui.RefreshTui()
 				return nil
@@ -826,16 +826,16 @@ func (tui *Tui) setAppFunctions() {
 					}
 				}
 				return nil
-			case tcell.KeyEscape:
-				tui.App.SetFocus(tui.LastSelectedWidget)
-				tui.LastSelectedWidget = tui.SubWidget.Table
-				tui.RefreshTui()
-				return nil
 			case tcell.KeyRune:
 				switch event.Rune() {
 				case 'l':
 					tui.Pages.SwitchToPage(descriptionPage)
 					tui.App.SetFocus(tui.Description)
+					return nil
+				case 'h':
+					tui.App.SetFocus(tui.LastSelectedWidget)
+					tui.LastSelectedWidget = tui.SubWidget.Table
+					tui.RefreshTui()
 					return nil
 				case 'o':
 					row, _ := tui.SubWidget.Table.GetSelection()
@@ -850,8 +850,8 @@ func (tui *Tui) setAppFunctions() {
 					return nil
 				case 'x':
 					texts := []string{
-						"h: move to DescriptionColumn",
-						"l: move to MainColumn",
+						"l: move to DescriptionColumn",
+						"h: move to MainColumn",
 						"q: Exit rfcui",
 					}
 					text := ""
@@ -876,6 +876,19 @@ func (tui *Tui) setAppFunctions() {
 				tui.App.SetFocus(tui.SubWidget.Table)
 				return nil
 			}
+      case 'x':
+        texts := []string{
+          "l: move to SubColumn",
+          "q: Exit rfcui",
+        }
+        text := ""
+        for _, line := range texts {
+          text += line + "\n"
+        }
+        tui.Modal.SetTitle("keymaps")
+        tui.Modal.SetText(text)
+        tui.Pages.ShowPage(modalPage)
+        tui.App.SetFocus(tui.Modal)
 		}
 		return event
 	})
@@ -1033,6 +1046,8 @@ func (tui *Tui) setAppFunctions() {
 		}
 		return event
 	})
+
+  tui.UpdateHelp("[q[]:quit rfcui [x[]:show keymaps")
 }
 
 func execCmd(attachStd bool, cmd string, args ...string) error {
