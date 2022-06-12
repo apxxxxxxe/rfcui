@@ -696,11 +696,24 @@ func (tui *Tui) setAppFunctions() {
 			case 'v':
 				tui.SelectFeed()
 			case 'c':
-				tui.InputWidget.Input.SetTitle("Change the feed's color")
-				tui.InputWidget.Mode = 2
-				tui.Pages.ShowPage(inputField)
-				tui.App.SetFocus(tui.InputWidget.Input)
-				tui.Notify("input 256 color code, or input \"random\" to randomize color.")
+				if tui.ConfirmationStatus == 'c' {
+					number := int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
+					row, _ := tui.FeedWidget.Table.GetSelection()
+					tui.FeedWidget.Feeds[row].Color = number
+					for _, item := range tui.FeedWidget.Feeds[row].Items {
+						item.Color = number
+					}
+					if err := tui.FeedWidget.SaveFeed(tui.FeedWidget.Feeds[row]); err != nil {
+						panic(err)
+					}
+					tui.FeedWidget.setFeeds()
+					tui.setItems(tui.FeedWidget.Feeds[row].IsMerged(), false)
+					tui.Notify("Changed.")
+					tui.ConfirmationStatus = defaultConfirmationStatus
+				} else {
+					tui.Notify("Press d again to change the feed's color.")
+					tui.ConfirmationStatus = 'c'
+				}
 			case 'm':
 				if len(tui.SelectingFeeds) > 1 {
 					tui.InputWidget.Input.SetTitle("Make a Group")
@@ -876,19 +889,19 @@ func (tui *Tui) setAppFunctions() {
 				tui.App.SetFocus(tui.SubWidget.Table)
 				return nil
 			}
-      case 'x':
-        texts := []string{
-          "l: move to SubColumn",
-          "q: Exit rfcui",
-        }
-        text := ""
-        for _, line := range texts {
-          text += line + "\n"
-        }
-        tui.Modal.SetTitle("keymaps")
-        tui.Modal.SetText(text)
-        tui.Pages.ShowPage(modalPage)
-        tui.App.SetFocus(tui.Modal)
+		case 'x':
+			texts := []string{
+				"l: move to SubColumn",
+				"q: Exit rfcui",
+			}
+			text := ""
+			for _, line := range texts {
+				text += line + "\n"
+			}
+			tui.Modal.SetTitle("keymaps")
+			tui.Modal.SetText(text)
+			tui.Pages.ShowPage(modalPage)
+			tui.App.SetFocus(tui.Modal)
 		}
 		return event
 	})
@@ -959,35 +972,6 @@ func (tui *Tui) setAppFunctions() {
 					tui.App.QueueUpdateDraw(func() {})
 					tui.WaitGroup.Done()
 				}()
-			case 2: // change feed color
-				var (
-					number int
-					err    error
-				)
-				if tui.InputWidget.Input.GetText() == "random" {
-					number = int(mycolor.ComfortableColorCode[rand.Intn(len(mycolor.ComfortableColorCode))])
-				} else {
-					number, err = strconv.Atoi(tui.InputWidget.Input.GetText())
-					if err != nil {
-						tui.NotifyError(err.Error())
-						break
-					}
-				}
-				if number < 0 {
-					number *= -1
-				}
-				number %= len(mycolor.ValidColorCode)
-				row, _ := tui.FeedWidget.Table.GetSelection()
-				tui.FeedWidget.Feeds[row].Color = number
-				for _, item := range tui.FeedWidget.Feeds[row].Items {
-					item.Color = number
-				}
-				if err := tui.FeedWidget.SaveFeed(tui.FeedWidget.Feeds[row]); err != nil {
-					panic(err)
-				}
-				tui.FeedWidget.setFeeds()
-				tui.setItems(tui.FeedWidget.Feeds[row].IsMerged(), false)
-				tui.Notify(fmt.Sprint("set color-number as ", number))
 			case 3:
 				title := tui.InputWidget.Input.GetText()
 				row, _ := tui.FeedWidget.Table.GetSelection()
@@ -1047,7 +1031,7 @@ func (tui *Tui) setAppFunctions() {
 		return event
 	})
 
-  tui.UpdateHelp("[q[]:quit rfcui [x[]:show keymaps")
+	tui.UpdateHelp("[q[]:quit rfcui [x[]:show keymaps")
 }
 
 func execCmd(attachStd bool, cmd string, args ...string) error {
